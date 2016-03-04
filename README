@@ -1,0 +1,59 @@
+Wesley Minner & Christie Mathews 
+  703549234       104404412
+
+CS 111 Operating Systems Principles
+Professor Eggert
+Winter 2016
+
+***********************
+Lab 4 - Synchronization
+***********************
+
+
+Part 1 TODO:
+* Tester program
+* Makefile
+* Function "add" and options...
+	--threads=# (default 1)
+	--iterations=# (default 1)
+	--iter=# (same as above)
+	--yield=#
+	--sync=m (protect with pthread_mutex)
+	--sync=s (protect with spin-lock)
+	--sync=c (protect with atomic operation compare-and-swap)
+* Implement output text
+* Graphs comparing unprotected, mutex, spin-lock, compare-and-swap
+	performance vs number of threads 
+	performance vs number of iterations
+* Short answers to questions posed in spec
+
+Part 2 TODO:
+* Functions for a sorted doubly linked list (SortedList.h)
+	insert
+	delete
+	lookup
+	length
+* sltest (tester program)
+	--threads=#
+	--iterations=#
+	--iter=# (same as above)
+	--yield=[ids] (i for insert, d for delete, s for searches)
+	--lists=#
+* Implement output text
+* Graphs
+	average time per unprotected operation vs number of iteration (single thread)
+	average time per operation (for none, mutex, and spin-lock) vs number of threads
+	average time per operation (for none, mutex, and spin-lock) vs the ratio of threads per list
+* Short answers to questions posed in spec
+
+
+Part 3 TODO:
+* Short answers to questions posed in spec
+
+
+Notes:
+* N/A
+
+
+Known Issues:
+* N/A
