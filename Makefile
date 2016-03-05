@@ -1,8 +1,8 @@
 # CS 111 Lab 4 Makefile
 
 CC = gcc
-#CFLAGS = -O4 -g -Wall -Wextra -Werror -Wno-unused
-CFLAGS = -g -Wall -Wextra
+#CFLAGS = -O4 -pthread -g -Wall -Wextra -Werror -Wno-unused
+CFLAGS = -pthread -g -Wall -Wextra
 DIR = lab4-$(USER)
 
 ADDTEST_SOURCES = \

@@ -9,13 +9,21 @@ Winter 2016
 Lab 4 - Synchronization
 ***********************
 
-Part 1 TODO:
-* Tester program
-* Makefile
+Part 1 Completed:
+* Makefile, checkdist
 * Function "add" and options...
 	--threads=# (default 1)
 	--iterations=# (default 1)
 	--iter=# (same as above)
+
+
+Part 2 Completed:
+* 
+
+
+Part 1 TODO:
+* Tester program
+* Function "add" and options...
 	--yield=#
 	--sync=m (protect with pthread_mutex)
 	--sync=s (protect with spin-lock)

@@ -1,15 +1,28 @@
-#include <stdlib.h> // exit
-#include <stdio.h>  // printf
+#include <stdlib.h>     // exit
+#include <stdio.h>      // printf
 
-#include <unistd.h> // getopt_long
-#include <getopt.h> // struct option (longopts)
+#include <unistd.h>     // getopt_long
+#include <getopt.h>     // struct option (longopts)
+
+#include <pthread.h>    // threads
+
+// Globals
+long long counter = 0;
+
+// Prototypes
+void *doAdd(void *iterations);                   // Function wrapper for add to pass into pthread_create
+void add(long long *pointer, long long value);   // Basic add routine
 
 int main(int argc, char **argv)
 {
+    int num_threads = 1;    // Number of threads, default = 1
+    int num_iterations = 1; // Number of iterations, default = 1
+    char opt_yield = '0';   // Yield in the middle of add to cause race condition
+    char opt_sync = '0';    // Synchronization method option
     int exit_status = 0;    // Keeps track of how the program should exit
 
-    int next_option;
-    int index;
+    int next_option;        // Return value of getopt_long
+    int index;              // Index into optarg
     int option_index = 0;   // Used with getopt_long
     int currOptInd = 0;     // Current option index
     int args_found = 0;     // Used to verify --option num of arguments requirement
@@ -18,6 +31,7 @@ int main(int argc, char **argv)
     extern int optind;      // Gives the current option out of argc options
     extern int opterr;      // Declared in getopt_long
     opterr = 0;             // Turns off automatic error message from getopt_long
+
 
 	static struct option long_options[] =
     {
@@ -29,8 +43,10 @@ int main(int argc, char **argv)
         {0, 0, 0, 0}
     };
 
+    // BEGIN parsing options
     if (argc <= 1) {		// No arguements
         printf("usage: %s [--threads=#] [--iterations=#] [--iter=#] [--yield=#] [--sync=[msc]]\n", argv[0]);
+        exit(0);
     } else if (argc > 1) { 	// At least one argument
         while (1) {
             // Get next option
@@ -71,7 +87,13 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    printf("Found threads = %d.\n", atoi(optarg));
+                    //printf("Found threads = %d.\n", atoi(optarg));
+                    if ( atoi(optarg) >= 1 )
+                        num_threads = atoi(optarg);
+                    else {
+                        fprintf(stderr, "Error: number of threads must be greater than or equal to 1!\n");
+                        exit_status = 1;
+                    }
 
                     args_found = 0;     // Reset args found for next option
                     break;
@@ -100,7 +122,13 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    printf("Found iterations = %d.\n", atoi(optarg));
+                    //printf("Found iterations = %d.\n", atoi(optarg));
+                    if ( atoi(optarg) >= 1 )
+                        num_iterations = atoi(optarg);
+                    else {
+                        fprintf(stderr, "Error: number of iterations must be greater than or equal to 1!\n");
+                        exit_status = 1;
+                    }
 
                     args_found = 0;     // Reset args found for next option
                     break;
@@ -128,7 +156,13 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    printf("Found yield = %d.\n", atoi(optarg));
+                    //printf("Found yield = %c.\n", *optarg);
+                    if ( *optarg == '0' || *optarg == '1' )
+                        opt_yield = *optarg;
+                    else {
+                        fprintf(stderr, "Error: yield must be from [01ids]!\n");
+                        exit_status = 1;
+                    }
 
                     args_found = 0;     // Reset args found for next option
                     break;
@@ -156,7 +190,13 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    printf("Found sync = %d.\n", atoi(optarg));
+                    //printf("Found sync = %c.\n", *optarg);
+                    if ( *optarg == 'm' || *optarg == 's' || *optarg == 'c' )
+                        opt_sync = *optarg;
+                    else {
+                        fprintf(stderr, "Error: sync must be from [msc]!\n");
+                        exit_status = 1;
+                    }
 
                     args_found = 0;     // Reset args found for next option
                     break;
@@ -168,6 +208,43 @@ int main(int argc, char **argv)
             }
         }
     }
+    // END parsing options
+
+    // Allocate array for thread ids
+    pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
+
+    int i;
+    // Create threads
+    for ( i = 0; i < num_threads; i++ ) {
+        int retval = pthread_create(&threads[i], NULL, &doAdd, &num_iterations);
+        if (retval != 0) {  // Error handling
+            fprintf(stderr, "Error: could not create requested number of threads.\n");
+            exit_status = 1;
+        }
+    }
+
+    // Print result
+    printf("Result of add is %lld\n", counter);
+
+    // Free allocated memory
+    free(threads);
 
     exit(exit_status);
+}
+
+// Function wrapper for add to pass into pthread_create
+void * doAdd(void *iterations) {
+    int i;
+    // Perform add operations with requested number of threads and iterations
+    for ( i = 0; i < *((int*)iterations); i++ )
+        add(&counter, 1);
+    for ( i = 0; i < *((int*)iterations); i++ )
+        add(&counter, -1);
+    return 0;
+}
+
+// Basic add routine
+void add(long long *pointer, long long value) {
+    long long sum = *pointer + value;
+    *pointer = sum;
 }
