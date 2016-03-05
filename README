@@ -9,7 +9,6 @@ Winter 2016
 Lab 4 - Synchronization
 ***********************
 
-
 Part 1 TODO:
 * Tester program
 * Makefile
@@ -26,6 +25,7 @@ Part 1 TODO:
 	performance vs number of threads 
 	performance vs number of iterations
 * Short answers to questions posed in spec
+
 
 Part 2 TODO:
 * Functions for a sorted doubly linked list (SortedList.h)
