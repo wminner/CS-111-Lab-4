@@ -1,10 +1,11 @@
 #include <stdlib.h>     // exit
 #include <stdio.h>      // printf
-
 #include <unistd.h>     // getopt_long
 #include <getopt.h>     // struct option (longopts)
-
 #include <pthread.h>    // threads
+#include <time.h>       // clock_gettime
+#include <errno.h>      // errno
+#include <string.h>     // strerror
 
 // Globals
 long long counter = 0;
@@ -17,8 +18,8 @@ int main(int argc, char **argv)
 {
     int num_threads = 1;    // Number of threads, default = 1
     int num_iterations = 1; // Number of iterations, default = 1
-    char opt_yield = '0';   // Yield in the middle of add to cause race condition
-    char opt_sync = '0';    // Synchronization method option
+    char opt_yield = '\0';   // Yield in the middle of add to cause race condition
+    char opt_sync = '\0';    // Synchronization method option
     int exit_status = 0;    // Keeps track of how the program should exit
 
     int next_option;        // Return value of getopt_long
@@ -210,22 +211,64 @@ int main(int argc, char **argv)
     }
     // END parsing options
 
+    int i;
+    int retval;
+    struct timespec tp_start, tp_end;
+
+    // Start timer to track wall time
+    retval = clock_gettime(CLOCK_MONOTONIC, &tp_start);
+    if ( retval < 0 ) {
+        fprintf(stderr, "Error with clock_gettime: %s\n", strerror(errno));
+        exit_status = 1;
+        goto error;
+    }
+
     // Allocate array for thread ids
     pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
 
-    int i;
     // Create threads
     for ( i = 0; i < num_threads; i++ ) {
-        int retval = pthread_create(&threads[i], NULL, &doAdd, &num_iterations);
-        if (retval != 0) {  // Error handling
+        retval = pthread_create(&threads[i], NULL, &doAdd, &num_iterations);
+        if ( retval != 0 ) {  // Error handling
             fprintf(stderr, "Error: could not create requested number of threads.\n");
             exit_status = 1;
+            goto error;
         }
     }
 
-    // Print result
-    printf("Result of add is %lld\n", counter);
+    // Wait for all threads to finish
+    for ( i = 0; i < num_threads; i++ ) {
+        retval = pthread_join(threads[i], NULL);
+        if ( retval != 0 ) {
+            fprintf(stderr, "Error: failed to join threads.\n");
+            exit_status = 1;
+            goto error;
+        }
+    }
 
+    // Stop timer and calculate wall time
+    retval = clock_gettime(CLOCK_MONOTONIC, &tp_end);
+    if ( retval < 0 ) {
+        fprintf(stderr, "Error with clock_gettime: %s\n", strerror(errno));
+        exit_status = 1;
+        goto error;
+    }
+
+    // Calculate wall time and operations
+    long long total_time = 1000000000*(tp_end.tv_sec - tp_start.tv_sec) + (tp_end.tv_nsec - tp_start.tv_nsec);
+    int num_ops = num_threads*num_iterations*2;
+    long long time_per_op = total_time/num_ops;
+
+    // Print summary of results
+    printf("%d threads x %d iterations x (add + subtract) = %d operations\n", num_threads, num_iterations, num_ops);
+    if ( counter != 0 )
+        fprintf(stderr, "ERROR: final count = %lld\n", counter);
+    else
+        printf("final count = %lld\n", counter);
+    printf("elapsed time: %lld ns\n", total_time);
+    printf("per operation: %lld ns\n", time_per_op);
+
+    error:
     // Free allocated memory
     free(threads);
 
