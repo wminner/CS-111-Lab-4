@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdlib.h>     // exit
 #include <stdio.h>      // printf
 #include <unistd.h>     // getopt_long
@@ -9,6 +10,7 @@
 
 // Globals
 long long counter = 0;
+char opt_yield[1] = {'0'};   // Yield in the middle of add to cause race condition
 
 // Prototypes
 void *doAdd(void *iterations);                   // Function wrapper for add to pass into pthread_create
@@ -18,10 +20,8 @@ int main(int argc, char **argv)
 {
     int num_threads = 1;    // Number of threads, default = 1
     int num_iterations = 1; // Number of iterations, default = 1
-    char opt_yield = '\0';   // Yield in the middle of add to cause race condition
-    char opt_sync = '\0';    // Synchronization method option
     int exit_status = 0;    // Keeps track of how the program should exit
-
+    char opt_sync[1] = {'0'};  // Synchronization method option
     int next_option;        // Return value of getopt_long
     int index;              // Index into optarg
     int option_index = 0;   // Used with getopt_long
@@ -32,7 +32,6 @@ int main(int argc, char **argv)
     extern int optind;      // Gives the current option out of argc options
     extern int opterr;      // Declared in getopt_long
     opterr = 0;             // Turns off automatic error message from getopt_long
-
 
 	static struct option long_options[] =
     {
@@ -159,7 +158,7 @@ int main(int argc, char **argv)
                     
                     //printf("Found yield = %c.\n", *optarg);
                     if ( *optarg == '0' || *optarg == '1' )
-                        opt_yield = *optarg;
+                        opt_yield[0] = optarg[0];
                     else {
                         fprintf(stderr, "Error: yield must be from [01ids]!\n");
                         exit_status = 1;
@@ -193,7 +192,7 @@ int main(int argc, char **argv)
                     
                     //printf("Found sync = %c.\n", *optarg);
                     if ( *optarg == 'm' || *optarg == 's' || *optarg == 'c' )
-                        opt_sync = *optarg;
+                        opt_sync[0] = optarg[0];
                     else {
                         fprintf(stderr, "Error: sync must be from [msc]!\n");
                         exit_status = 1;
@@ -289,5 +288,7 @@ void * doAdd(void *iterations) {
 // Basic add routine
 void add(long long *pointer, long long value) {
     long long sum = *pointer + value;
+    if ( atoi(opt_yield) == 1 )
+        pthread_yield();
     *pointer = sum;
 }
