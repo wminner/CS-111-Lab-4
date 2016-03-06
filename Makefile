@@ -6,7 +6,7 @@ CFLAGS = -pthread -g -Wall -Wextra
 DIR = lab4-$(USER)
 
 ADDTEST_SOURCES = main_add.c
-SLTEST_SOURCES = main_sl.c SortedList.c
+SLTEST_SOURCES = main_sl.c
 
 ADDTEST_OBJECTS = $(subst .c,.o,$(ADDTEST_SOURCES))
 SLTEST_OBJECTS = $(subst .c,.o,$(SLTEST_SOURCES))

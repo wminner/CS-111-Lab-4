@@ -42,6 +42,7 @@ sltest functionality:
 	--threads=#
 	--iterations=#
 	--iter=# (same as above)
+	--yield=[ids] (maybe working? can't get race condition to happen)
 
 
 Part 1 TODO:
@@ -49,14 +50,15 @@ Part 1 TODO:
 	performance vs number of threads 
 	performance vs number of iterations
 * Short answers to questions posed in spec
+* Check memory allocations for errors
 
 
 Part 2 TODO:
 * sltest (tester program)
-	--yield=[ids] (i for insert, d for delete, s for searches)
 	--sync=m (protect with mutex)
 	--sync=s (protect with spin-lock)
 	--lists=#
+* Check memory allocations for errors
 * Graphs
 	average time per unprotected operation vs number of iteration (single thread)
 	average time per operation (for none, mutex, and spin-lock) vs number of threads

@@ -159,19 +159,22 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    switch (*optarg) {
-                        case 'i':   // yield during insert
-                            opt_yield = INSERT_YIELD;
-                            break;
-                        case 'd':   // yield during delete
-                            opt_yield = DELETE_YIELD;
-                            break;
-                        case 's':   // yield during search
-                            opt_yield = SEARCH_YIELD;
-                            break;
-                        default:
-                            fprintf(stderr, "Error: yield must be from [ids]!\n");
-                            exit_status = 1;
+                    // OR all yield characters from optarg (can be any combination of [ids])
+                    for ( unsigned k = 0; k < strlen(optarg); k++ ) {
+                        switch (optarg[k]) {
+                            case 'i':   // yield during insert
+                                opt_yield |= INSERT_YIELD;
+                                break;
+                            case 'd':   // yield during delete
+                                opt_yield |= DELETE_YIELD;
+                                break;
+                            case 's':   // yield during search
+                                opt_yield |= SEARCH_YIELD;
+                                break;
+                            default:
+                                fprintf(stderr, "Error: yield must be from [ids]!\n");
+                                exit_status = 1;
+                        }
                     }
 
                     args_found = 0;     // Reset args found for next option
@@ -254,11 +257,16 @@ int main(int argc, char **argv)
     if ( retval < 0 ) {
         fprintf(stderr, "Error with clock_gettime: %s\n", strerror(errno));
         exit_status = 1;
-        goto error;
+        goto errorNoFree;
     }
 
     // Allocate array for thread ids
     pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
+    if ( !threads ) {
+        fprintf(stderr, "Error: could not allocate memory.\n");
+        exit_status = 1;
+        goto errorNoFree;
+    }
 
     // Create threads
     for ( i = 0; i < num_threads; i++ ) {
@@ -308,19 +316,19 @@ int main(int argc, char **argv)
     }
 
     // Calculate wall time and operations
-    long long total_time = 1000000000*(tp_end.tv_sec - tp_start.tv_sec) + (tp_end.tv_nsec - tp_start.tv_nsec);
-    int num_ops = num_threads*num_iterations*num_iterations;
-    long long time_per_op = total_time/num_ops;
+    long long unsigned total_time = 1000000000*(tp_end.tv_sec - tp_start.tv_sec) + (tp_end.tv_nsec - tp_start.tv_nsec);
+    long long unsigned num_ops = num_threads*num_iterations*num_iterations;
+    long long unsigned time_per_op = total_time/num_ops;
     int length = SortedList_length(list_head);
 
     // Print summary of results
-    printf("%d threads x %d iterations x (ins + lookup/del) x (%d/2 avg len) = %d operations\n", num_threads, num_iterations, num_iterations, num_ops);
+    printf("%d threads x %d iterations x (ins + lookup/del) x (%d/2 avg len) = %llu operations\n", num_threads, num_iterations, num_iterations, num_ops);
     if ( length != 0 )
         fprintf(stderr, "ERROR: final count = %d\n", length);
     else
         printf("final count = %d\n", length);
-    printf("elapsed time: %lld ns\n", total_time);
-    printf("per operation: %lld ns\n", time_per_op);
+    printf("elapsed time: %llu ns\n", total_time);
+    printf("per operation: %llu ns\n", time_per_op);
 
     error:
     // Free allocated memory
@@ -332,8 +340,13 @@ int main(int argc, char **argv)
     free((void*) list_head);
     free((void*) elements);
 
+    errorNoFree:
     exit(exit_status);
 }
+
+//******************************************************************************
+// Wrapper functions
+//******************************************************************************
 
 // Function wrapper for add with no synchronization
 void * doTask(void *start_pos) {
@@ -433,6 +446,86 @@ void * doTaskWithCompareSwap(void *start_pos) {
             return (void*)-1;
     }
     return (void*)0;
+}
+
+//******************************************************************************
+// Sorted list functions
+//******************************************************************************
+
+SortedList_t* SortedList_new(void) {
+    SortedList_t *new_list = (SortedList_t*) malloc(sizeof(SortedList_t));
+    new_list->prev = new_list;
+    new_list->next = new_list;
+    new_list->key = NULL;
+    return new_list;
+}
+
+void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
+    SortedListElement_t *ele_prev = list;
+    SortedListElement_t *ele_next = list->next;
+    while ( ele_next != list ) {
+        // Compare keys and break if found target location (sorted ascending order)
+        if ( strcmp(element->key, ele_next->key) <= 0 )
+            break;
+        // Go to next element in list
+        ele_prev = ele_next;
+        ele_next = ele_next->next;
+    }
+    if ( opt_yield & 1 )
+        pthread_yield();
+    // Found location, hook up pointers between current elements
+    element->next = ele_next;
+    element->prev = ele_prev;
+    ele_next->prev = element;
+    ele_prev->next = element;
+}
+
+int SortedList_delete( SortedListElement_t *element) {
+    SortedListElement_t *ele_prev = element->prev;
+    SortedListElement_t *ele_next = element->next;
+    // Check pointers are valid
+    if ( ele_next->prev != element )
+        return 1;
+    if ( ele_prev->next != element )
+        return 1;
+    if ( opt_yield & DELETE_YIELD )
+        pthread_yield();
+    // Rearrange pointers and set element pointers to NULL
+    ele_next->prev = element->prev;
+    ele_prev->next = element->next;
+    element->prev = NULL;
+    element->next = NULL;
+    return 0;
+}
+
+SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
+    SortedListElement_t *element = list->next;
+    while ( element && element != list ) {
+        // Check if element has key
+        if ( element->key == key )
+            return element;
+        element = element->next;
+        if ( opt_yield & SEARCH_YIELD )
+            pthread_yield();
+    }
+    // Didn't find key
+    return NULL;
+}
+
+int SortedList_length(SortedList_t *list) {
+    SortedListElement_t *element = list;
+    int count = 0;
+    while ( element->next != list ) {
+        // Check for NULL pointers
+        if (!element->next || !element->prev)
+            return -1;
+        // Increment count
+        count++;
+        element = element->next;
+        if ( opt_yield & SEARCH_YIELD )
+            pthread_yield();
+    }
+    return count;
 }
 
 // // Function wrapper for add with mutex synchronization

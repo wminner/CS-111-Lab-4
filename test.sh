@@ -18,7 +18,7 @@ else
 fi
 
 # Test 2 - multiple threads (expect failure)
-(./addtest --yield=1 --iter=10000 --threads=10) 1> out 2> err
+(./addtest --yield=1 --iter=10000 --threads=20) 1> out 2> err
 if [ $? -eq 0 -a -s err ]
 then
 	echo "Test 2/$TESTNUM passed"
@@ -28,7 +28,7 @@ else
 fi
 
 # Test 3 - mutex synchronization
-(./addtest --yield=1 --sync=m --iter=10000 --threads=10) 1> out 2> err
+(./addtest --yield=1 --sync=m --iter=10000 --threads=20) 1> out 2> err
 if [ $? -eq 0 -a ! -s err ]
 then
 	echo "Test 3/$TESTNUM passed"
@@ -38,7 +38,7 @@ else
 fi
 
 # Test 4 - spin lock synchronization
-(./addtest --yield=1 --sync=s --iter=10000 --threads=10) 1> out 2> err
+(./addtest --yield=1 --sync=s --iter=10000 --threads=20) 1> out 2> err
 if [ $? -eq 0 -a ! -s err ]
 then
 	echo "Test 4/$TESTNUM passed"
@@ -48,7 +48,7 @@ else
 fi
 
 # Test 5 - compare and swap synchronization
-(./addtest --yield=1 --sync=c --iter=10000 --threads=10) 1> out 2> err
+(./addtest --yield=1 --sync=c --iter=10000 --threads=20) 1> out 2> err
 if [ $? -eq 0 -a ! -s err ]
 then
 	echo "Test 5/$TESTNUM passed"

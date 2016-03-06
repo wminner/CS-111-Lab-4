@@ -219,11 +219,16 @@ int main(int argc, char **argv)
     if ( retval < 0 ) {
         fprintf(stderr, "Error with clock_gettime: %s\n", strerror(errno));
         exit_status = 1;
-        goto error;
+        goto errorNoFree;
     }
 
     // Allocate array for thread ids
     pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
+    if ( !threads ) {
+        fprintf(stderr, "Error: could not allocate memory.\n");
+        exit_status = 1;
+        goto errorNoFree;
+    }
 
     // Create threads
     for ( i = 0; i < num_threads; i++ ) {
@@ -272,23 +277,24 @@ int main(int argc, char **argv)
     }
 
     // Calculate wall time and operations
-    long long total_time = 1000000000*(tp_end.tv_sec - tp_start.tv_sec) + (tp_end.tv_nsec - tp_start.tv_nsec);
-    int num_ops = num_threads*num_iterations*2;
-    long long time_per_op = total_time/num_ops;
+    long long unsigned total_time = 1000000000*(tp_end.tv_sec - tp_start.tv_sec) + (tp_end.tv_nsec - tp_start.tv_nsec);
+    long long unsigned num_ops = num_threads*num_iterations*2;
+    long long unsigned time_per_op = total_time/num_ops;
 
     // Print summary of results
-    printf("%d threads x %d iterations x (add + subtract) = %d operations\n", num_threads, num_iterations, num_ops);
+    printf("%d threads x %d iterations x (add + subtract) = %llu operations\n", num_threads, num_iterations, num_ops);
     if ( counter != 0 )
         fprintf(stderr, "ERROR: final count = %lld\n", counter);
     else
         printf("final count = %lld\n", counter);
-    printf("elapsed time: %lld ns\n", total_time);
-    printf("per operation: %lld ns\n", time_per_op);
+    printf("elapsed time: %llu ns\n", total_time);
+    printf("per operation: %llu ns\n", time_per_op);
 
     error:
     // Free allocated memory
     free(threads);
 
+    errorNoFree:
     exit(exit_status);
 }
 
