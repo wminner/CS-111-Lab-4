@@ -7,10 +7,11 @@
 #include <time.h>       // clock_gettime
 #include <errno.h>      // errno
 #include <string.h>     // strerror
+#include "SortedList.h" // doubly linked list for part 2 of lab
 
 // Globals
 long long counter = 0;
-char opt_yield = '0';   // Yield in the middle of add to cause race condition
+int opt_yield = 0;   // Yield in the middle of add to cause race condition
 char opt_sync = '0';  // Synchronization method option
 
 // Prototypes
@@ -91,7 +92,6 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    //printf("Found threads = %d.\n", atoi(optarg));
                     if ( atoi(optarg) >= 1 )
                         num_threads = atoi(optarg);
                     else {
@@ -126,7 +126,6 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    //printf("Found iterations = %d.\n", atoi(optarg));
                     if ( atoi(optarg) >= 1 )
                         num_iterations = atoi(optarg);
                     else {
@@ -160,12 +159,23 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    //printf("Found yield = %c.\n", *optarg);
-                    if ( *optarg == '0' || *optarg == '1' )
-                        opt_yield = optarg[0];
-                    else {
-                        fprintf(stderr, "Error: yield must be from [01ids]!\n");
-                        exit_status = 1;
+                    switch (*optarg) {
+                        case '0':   // Part 1 Off or On
+                        case '1':
+                            opt_yield = atoi(optarg);
+                            break;
+                        case 'i':   // Part 2 yield during Insert
+                            
+                            break;
+                        case 'd':   // Part 2 yield during delete
+
+                            break;
+                        case 's':   // Part 2 yield during search
+
+                            break;
+                        default:
+                            fprintf(stderr, "Error: yield must be from [01ids]!\n");
+                            exit_status = 1;
                     }
 
                     args_found = 0;     // Reset args found for next option
@@ -194,7 +204,6 @@ int main(int argc, char **argv)
                         break;
                     }
                     
-                    //printf("Found sync = %c.\n", *optarg);
                     if ( *optarg == 'm' || *optarg == 's' || *optarg == 'c' )
                         opt_sync = optarg[0];
                     else {
@@ -361,7 +370,7 @@ void * doAddWithCompareSwap(void *iterations) {
 // Basic add routine
 void add(long long *pointer, long long value) {
     long long sum = *pointer + value;
-    if ( atoi(&opt_yield) == 1 )
+    if ( opt_yield == 1 )
         pthread_yield();
     *pointer = sum;
 }
@@ -372,7 +381,7 @@ void addWithCompareSwap(long long *pointer, long long value) {
     do {
         original = *pointer;
         sum = original + value;
-        if ( atoi(&opt_yield) == 1 )
+        if ( opt_yield == 1 )
             pthread_yield();
         //*pointer = sum;
     } while ( __sync_val_compare_and_swap(pointer, original, sum) != original );

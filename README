@@ -9,12 +9,26 @@ Winter 2016
 Lab 4 - Synchronization
 ***********************
 
+Makefile functionality:
+* make: compiles programs 'addtest' and 'sltest' for part 1 and 2 of the lab
+* make dist: packages files into tarball and does some checks
+* make check: executes test.sh, which performs some simple tests on addtest and 
+	sltest
+* make clean: removes all files created from 'make'
+* make addtest: only compiles program 'addtest' for part 1 of the lab
+* make sltest: only compiles program 'sltest' for part 2 of the lab
+
+
 Part 1 Completed:
 * Makefile, checkdist
 * Function "add" and options...
 	--threads=# (default 1)
 	--iterations=# (default 1)
 	--iter=# (same as above)
+	--yield=#
+	--sync=m (protect with pthread_mutex)
+	--sync=s (protect with spin-lock)
+	--sync=c (protect with atomic operation compare-and-swap)
 
 
 Part 2 Completed:
@@ -22,13 +36,6 @@ Part 2 Completed:
 
 
 Part 1 TODO:
-* Tester program
-* Function "add" and options...
-	--yield=#
-	--sync=m (protect with pthread_mutex)
-	--sync=s (protect with spin-lock)
-	--sync=c (protect with atomic operation compare-and-swap)
-* Implement output text
 * Graphs comparing unprotected, mutex, spin-lock, compare-and-swap
 	performance vs number of threads 
 	performance vs number of iterations
@@ -58,12 +65,27 @@ Part 2 TODO:
 Part 3 TODO:
 * Short answers to questions posed in spec
 
+
 =======
 Answers
 =======
 Questions 1.1
-	1. 
-	2. 
+	1. From experimental testing on Seasnet, using greater than 400 iterations 
+	   and 10 threads results in a failure "fairly" consistently.  Using a 
+	   single thread will never failure (as there can be no race conditions).
+	   Decreasing the number of threads improves the chances of getting 0 with
+	   400 iterations, but not significantly.  Increasing the number of threads
+	   offers the same rate of failure as 400 x 10 (consistent failure).
+
+	   It most likely takes this many iterations and threads because the more
+	   chances we have to witness a race condition, the more likely it will
+	   happen.  The scheduler must preempt a running thread while it is in the 
+	   middle of the add function and this rarely happens if there are few 
+	   iterations or threads trying to perform operations at the same time.
+
+	2. With fewer iterations, threads don't end up waiting a long time to take
+	   their turn.  Thus the scheduler rarely has to preempt active threads to
+	   serve threads that have been waiting a long time.
 
 Questions 1.2
 	1. 
