@@ -19,20 +19,22 @@ Makefile functionality:
 * make sltest: only compiles program 'sltest' for part 2 of the lab
 
 
-Part 1 Completed:
-* Makefile, checkdist
-* Function "add" and options...
+addtest functionality:
+* Working options
 	--threads=# (default 1)
 	--iterations=# (default 1)
 	--iter=# (same as above)
-	--yield=#
-	--sync=m (protect with pthread_mutex)
+	--yield=# (0 or 1, default 0)
+	--sync=m (protect with mutex)
 	--sync=s (protect with spin-lock)
-	--sync=c (protect with atomic operation compare-and-swap)
+	--sync=c (protect with compare-and-swap)
 
-
-Part 2 Completed:
-* 
+sltest functionality:
+* Functions for a sorted doubly linked list (SortedList.h)
+	insert
+	delete
+	lookup
+	length
 
 
 Part 1 TODO:
@@ -43,11 +45,6 @@ Part 1 TODO:
 
 
 Part 2 TODO:
-* Functions for a sorted doubly linked list (SortedList.h)
-	insert
-	delete
-	lookup
-	length
 * sltest (tester program)
 	--threads=#
 	--iterations=#

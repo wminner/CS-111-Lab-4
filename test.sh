@@ -1,4 +1,5 @@
 #!/bin/bash
+# Performs tests on both addtest and sltest
 
 make clean
 make

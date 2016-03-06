@@ -1,3 +1,6 @@
+#ifndef SORTEDLIST
+#define SORTEDLIST
+
 /*
  * SortedList (and SortedListElement)
  *
@@ -87,3 +90,6 @@ extern int opt_yield;
 #define	INSERT_YIELD	0x01	// yield in insert critical section
 #define	DELETE_YIELD	0x02	// yield in delete critical section
 #define	SEARCH_YIELD	0x04	// yield in lookup/length critical section
+
+
+#endif /* SORTEDLIST */

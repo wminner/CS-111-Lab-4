@@ -6,14 +6,16 @@ CFLAGS = -pthread -g -Wall -Wextra
 DIR = lab4-$(USER)
 
 ADDTEST_SOURCES = main_add.c
-SLTEST_SOURCES = main_sl.c
+SLTEST_SOURCES = main_sl.c SortedList.c
 
 ADDTEST_OBJECTS = $(subst .c,.o,$(ADDTEST_SOURCES))
 SLTEST_OBJECTS = $(subst .c,.o,$(SLTEST_SOURCES))
 
-DIST_SOURCES = $(ADDTEST_SOURCES) $(SLTEST_SOURCES) Makefile README checkdist
+DIST_SOURCES = $(ADDTEST_SOURCES) $(SLTEST_SOURCES) Makefile README checkdist \
+	SortedList.h
 
 all: addtest sltest
+
 addtest: $(ADDTEST_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $(ADDTEST_OBJECTS)
 
