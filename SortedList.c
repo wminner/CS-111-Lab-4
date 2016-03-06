@@ -2,6 +2,14 @@
 #include <string.h>
 #include <stdlib.h>
 
+SortedList_t* SortedList_new(void) {
+	SortedList_t *new_list = (SortedList_t*) malloc(sizeof(SortedList_t));
+	new_list->prev = new_list;
+	new_list->next = new_list;
+	new_list->key = NULL;
+	return new_list;
+}
+
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 	SortedListElement_t *ele_prev = list->prev;
 	SortedListElement_t *ele_next = list->next;

@@ -20,6 +20,9 @@ struct SortedListElement {
 typedef struct SortedListElement SortedList_t;
 typedef struct SortedListElement SortedListElement_t;
 
+// Allocate and initilize a new sorted list head
+SortedList_t* SortedList_new(void);
+
 /**
  * SortedList_insert ... insert an element into a sorted list
  *
