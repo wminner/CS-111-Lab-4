@@ -19,6 +19,13 @@ Makefile functionality:
 * make sltest: only compiles program 'sltest' for part 2 of the lab
 
 
+Sorted doubly linked list functionality (SortedList.c):
+	insert
+	delete
+	lookup
+	length
+
+
 addtest functionality:
 * Working options
 	--threads=# (default 1)
@@ -29,12 +36,12 @@ addtest functionality:
 	--sync=s (protect with spin-lock)
 	--sync=c (protect with compare-and-swap)
 
+
 sltest functionality:
-* Functions for a sorted doubly linked list (SortedList.h)
-	insert
-	delete
-	lookup
-	length
+* Working options
+	--threads=#
+	--iterations=#
+	--iter=# (same as above)
 
 
 Part 1 TODO:
@@ -46,12 +53,10 @@ Part 1 TODO:
 
 Part 2 TODO:
 * sltest (tester program)
-	--threads=#
-	--iterations=#
-	--iter=# (same as above)
 	--yield=[ids] (i for insert, d for delete, s for searches)
+	--sync=m (protect with mutex)
+	--sync=s (protect with spin-lock)
 	--lists=#
-* Implement output text
 * Graphs
 	average time per unprotected operation vs number of iteration (single thread)
 	average time per operation (for none, mutex, and spin-lock) vs number of threads

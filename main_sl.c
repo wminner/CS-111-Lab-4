@@ -222,16 +222,16 @@ int main(int argc, char **argv)
     int i, j;
     int retval;
     struct timespec tp_start, tp_end;
-    int list_size = num_threads * num_iterations;
+    int total_elements = num_threads * num_iterations;
 
     // These variables were declared earlier in the global scope
     // Initilize and construct list head
     list_head = SortedList_new();
     // Allocate array of all elements that will be distributed to threads
-    elements = (SortedListElement_t*) calloc(list_size, sizeof(SortedListElement_t));
+    elements = (SortedListElement_t*) calloc(total_elements, sizeof(SortedListElement_t));
 
     // Initialize all elements with a random key
-    for ( i = 0; i < list_size; i++ ) {
+    for ( i = 0; i < total_elements; i++ ) {
         // Allocate key memory
         char *new_key = (char*) malloc(key_length*sizeof(char) + 1);
 
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
         new_key[j+1] = '\0';
 
         // Point element key to new key
-        (elements+i*sizeof(SortedListElement_t))->key = new_key;
+        (elements+i)->key = new_key;
     }
 
     // Start timer to track wall time
@@ -326,9 +326,10 @@ int main(int argc, char **argv)
     // Free allocated memory
     free(threads);
     // Free key memory for each element
-    for ( i = 0; i < list_size; i++ )
-        free((void*) ((elements+i*sizeof(SortedListElement_t))->key));
+    for ( i = 0; i < total_elements; i++ )
+        free((void*) (elements+i)->key);
     // Free elements block
+    free((void*) list_head);
     free((void*) elements);
 
     exit(exit_status);
@@ -339,7 +340,7 @@ void * doTask(void *start_pos) {
     int i;
     // Perform requested number of inserts
     for ( i = *((int*)start_pos); i < num_iterations; i++ )
-        SortedList_insert(list_head, elements+i*sizeof(SortedListElement_t));
+        SortedList_insert(list_head, elements+i);
     
     // Check list length (as required by spec)
     if ( SortedList_length(list_head) < 0 )
@@ -347,7 +348,7 @@ void * doTask(void *start_pos) {
 
     // Perform requested number of loopups/deletes
     for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i*sizeof(SortedListElement_t))->key);
+        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 )
@@ -364,7 +365,7 @@ void * doTaskWithMutex(void *start_pos) {
     int i;
     // Perform requested number of inserts
     for ( i = *((int*)start_pos); i < num_iterations; i++ )
-        SortedList_insert(list_head, elements+i*sizeof(SortedListElement_t));
+        SortedList_insert(list_head, elements+i);
     
     // Check list length (as required by spec)
     if ( SortedList_length(list_head) < 0 )
@@ -372,7 +373,7 @@ void * doTaskWithMutex(void *start_pos) {
 
     // Perform requested number of loopups/deletes
     for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i*sizeof(SortedListElement_t))->key);
+        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 )
@@ -389,7 +390,7 @@ void * doTaskWithSpinLock(void *start_pos) {
     int i;
     // Perform requested number of inserts
     for ( i = *((int*)start_pos); i < num_iterations; i++ )
-        SortedList_insert(list_head, elements+i*sizeof(SortedListElement_t));
+        SortedList_insert(list_head, elements+i);
     
     // Check list length (as required by spec)
     if ( SortedList_length(list_head) < 0 )
@@ -397,7 +398,7 @@ void * doTaskWithSpinLock(void *start_pos) {
 
     // Perform requested number of loopups/deletes
     for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i*sizeof(SortedListElement_t))->key);
+        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 )
@@ -414,7 +415,7 @@ void * doTaskWithCompareSwap(void *start_pos) {
     int i;
     // Perform requested number of inserts
     for ( i = *((int*)start_pos); i < num_iterations; i++ )
-        SortedList_insert(list_head, elements+i*sizeof(SortedListElement_t));
+        SortedList_insert(list_head, elements+i);
     
     // Check list length (as required by spec)
     if ( SortedList_length(list_head) < 0 )
@@ -422,7 +423,7 @@ void * doTaskWithCompareSwap(void *start_pos) {
 
     // Perform requested number of loopups/deletes
     for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i*sizeof(SortedListElement_t))->key);
+        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 )

@@ -11,7 +11,7 @@ SortedList_t* SortedList_new(void) {
 }
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
-	SortedListElement_t *ele_prev = list->prev;
+	SortedListElement_t *ele_prev = list;
 	SortedListElement_t *ele_next = list->next;
 	while ( ele_next != list ) {
 		// Compare keys and break if found target location (sorted ascending order)
@@ -41,20 +41,15 @@ int SortedList_delete( SortedListElement_t *element) {
 	ele_prev->next = element->next;
 	element->prev = NULL;
 	element->next = NULL;
-	// Free memory
-	free(element);
 	return 0;
 }
 
 SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
-	SortedListElement_t *element = list;
-	while ( element->next != list ) {
+	SortedListElement_t *element = list->next;
+	while ( element && element != list ) {
 		// Check if element has key
 		if ( element->key == key )
 			return element;
-		// Check for NULL next pointer
-		if ( !element->next )
-			return NULL;
 		element = element->next;
 	}
 	// Didn't find key
