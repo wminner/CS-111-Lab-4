@@ -10,18 +10,22 @@
 
 // Globals
 long long counter = 0;
-char opt_yield[1] = {'0'};   // Yield in the middle of add to cause race condition
+char opt_yield = '0';   // Yield in the middle of add to cause race condition
+char opt_sync = '0';  // Synchronization method option
 
 // Prototypes
-void *doAdd(void *iterations);                   // Function wrapper for add to pass into pthread_create
-void add(long long *pointer, long long value);   // Basic add routine
+void *doAdd(void *iterations);                  // Function wrapper for add with no synchronization
+void *doAddWithMutex(void *iterations);         // Function wrapper for add with mutex synchronization
+void *doAddWithSpinLock(void *iterations);      // Function wrapper for add with spin lock synchronization
+void *doAddWithCompareSwap(void *iterations);   // Function wrapper for add with compare and swap synchronization
+void add(long long *pointer, long long value);  // Basic add routine
+void addWithCompareSwap(long long *pointer, long long value);   // Add routine with compare and swap synchronization
 
 int main(int argc, char **argv)
 {
     int num_threads = 1;    // Number of threads, default = 1
     int num_iterations = 1; // Number of iterations, default = 1
     int exit_status = 0;    // Keeps track of how the program should exit
-    char opt_sync[1] = {'0'};  // Synchronization method option
     int next_option;        // Return value of getopt_long
     int index;              // Index into optarg
     int option_index = 0;   // Used with getopt_long
@@ -158,7 +162,7 @@ int main(int argc, char **argv)
                     
                     //printf("Found yield = %c.\n", *optarg);
                     if ( *optarg == '0' || *optarg == '1' )
-                        opt_yield[0] = optarg[0];
+                        opt_yield = optarg[0];
                     else {
                         fprintf(stderr, "Error: yield must be from [01ids]!\n");
                         exit_status = 1;
@@ -192,7 +196,7 @@ int main(int argc, char **argv)
                     
                     //printf("Found sync = %c.\n", *optarg);
                     if ( *optarg == 'm' || *optarg == 's' || *optarg == 'c' )
-                        opt_sync[0] = optarg[0];
+                        opt_sync = optarg[0];
                     else {
                         fprintf(stderr, "Error: sync must be from [msc]!\n");
                         exit_status = 1;
@@ -227,7 +231,25 @@ int main(int argc, char **argv)
 
     // Create threads
     for ( i = 0; i < num_threads; i++ ) {
-        retval = pthread_create(&threads[i], NULL, &doAdd, &num_iterations);
+        switch (opt_sync) {
+            case '0':   // No synchronization
+                retval = pthread_create(&threads[i], NULL, &doAdd, &num_iterations);
+                break;
+            case 'm':   // Mutex
+                retval = pthread_create(&threads[i], NULL, &doAddWithMutex, &num_iterations);
+                break;
+            case 's':   // Spin-lock
+                retval = pthread_create(&threads[i], NULL, &doAddWithSpinLock, &num_iterations);
+                break;
+            case 'c':   // Compare and swap
+                retval = pthread_create(&threads[i], NULL, &doAddWithCompareSwap, &num_iterations);
+                break;
+            default:    // Error
+                fprintf(stderr, "Error: invalid sync value\n");
+                exit_status = 1;
+                goto error;
+        }
+
         if ( retval != 0 ) {  // Error handling
             fprintf(stderr, "Error: could not create requested number of threads.\n");
             exit_status = 1;
@@ -274,9 +296,10 @@ int main(int argc, char **argv)
     exit(exit_status);
 }
 
-// Function wrapper for add to pass into pthread_create
+// Function wrapper for add with no synchronization
 void * doAdd(void *iterations) {
     int i;
+
     // Perform add operations with requested number of threads and iterations
     for ( i = 0; i < *((int*)iterations); i++ )
         add(&counter, 1);
@@ -285,10 +308,72 @@ void * doAdd(void *iterations) {
     return 0;
 }
 
+// Function wrapper for add with mutex synchronization
+void * doAddWithMutex(void *iterations) {
+    int i;
+    static pthread_mutex_t mutex;
+
+    // Perform add operations with requested number of threads and iterations
+    for ( i = 0; i < *((int*)iterations); i++ ) {
+        pthread_mutex_lock(&mutex);
+        add(&counter, 1);
+        pthread_mutex_unlock(&mutex);
+    }
+    for ( i = 0; i < *((int*)iterations); i++ ) {
+        pthread_mutex_lock(&mutex);
+        add(&counter, -1);
+        pthread_mutex_unlock(&mutex);
+    }
+    return 0;
+}
+
+// Function wrapper for add with spin lock synchronization
+void * doAddWithSpinLock(void *iterations) {
+    int i;
+    static volatile int spinlock = 0;
+
+    // Perform add operations with requested number of threads and iterations
+    for ( i = 0; i < *((int*)iterations); i++ ) {
+        while ( __sync_lock_test_and_set(&spinlock, 1) );
+        add(&counter, 1);
+        __sync_lock_release(&spinlock);
+    }
+    for ( i = 0; i < *((int*)iterations); i++ ) {
+        while ( __sync_lock_test_and_set(&spinlock, 1) );
+        add(&counter, -1);
+        __sync_lock_release(&spinlock);
+    }
+    return 0;
+}
+
+// Function wrapper for add with compare and swap synchronization
+void * doAddWithCompareSwap(void *iterations) {
+    int i;
+
+    // Perform add operations with requested number of threads and iterations
+    for ( i = 0; i < *((int*)iterations); i++ )
+        addWithCompareSwap(&counter, 1);
+    for ( i = 0; i < *((int*)iterations); i++ )
+        addWithCompareSwap(&counter, -1);
+    return 0;
+}
+
 // Basic add routine
 void add(long long *pointer, long long value) {
     long long sum = *pointer + value;
-    if ( atoi(opt_yield) == 1 )
+    if ( atoi(&opt_yield) == 1 )
         pthread_yield();
     *pointer = sum;
+}
+
+// Add routine with compare and swap synchronization
+void addWithCompareSwap(long long *pointer, long long value) {
+    long long original, sum;
+    do {
+        original = *pointer;
+        sum = original + value;
+        if ( atoi(&opt_yield) == 1 )
+            pthread_yield();
+        //*pointer = sum;
+    } while ( __sync_val_compare_and_swap(pointer, original, sum) != original );
 }

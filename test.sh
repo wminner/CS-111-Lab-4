@@ -3,7 +3,7 @@
 make clean
 make
 
-TESTNUM=2
+TESTNUM=5
 PASSNUM=0
 
 # Test 1 - single thread (expect success)
@@ -24,6 +24,36 @@ then
 	PASSNUM=$((PASSNUM+1))
 else
 	echo "Test 2/$TESTNUM failed!?"
+fi
+
+# Test 3 - mutex synchronization
+(./addtest --sync=m --iter=10000 --threads=10) 1> out 2> err
+if [ $? -eq 0 -a ! -s err ]
+then
+	echo "Test 3/$TESTNUM passed"
+	PASSNUM=$((PASSNUM+1))
+else
+	echo "Test 3/$TESTNUM failed!?"
+fi
+
+# Test 4 - spin lock synchronization
+(./addtest --sync=s --iter=10000 --threads=10) 1> out 2> err
+if [ $? -eq 0 -a ! -s err ]
+then
+	echo "Test 4/$TESTNUM passed"
+	PASSNUM=$((PASSNUM+1))
+else
+	echo "Test 4/$TESTNUM failed!?"
+fi
+
+# Test 5 - compare and swap synchronization
+(./addtest --sync=c --iter=10000 --threads=10) 1> out 2> err
+if [ $? -eq 0 -a ! -s err ]
+then
+	echo "Test 5/$TESTNUM passed"
+	PASSNUM=$((PASSNUM+1))
+else
+	echo "Test 5/$TESTNUM failed!?"
 fi
 
 # Clean up files
