@@ -8,3 +8,6 @@
 
 addtest
 sltest
+
+/data/*
+*.dat
