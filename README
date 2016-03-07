@@ -47,6 +47,7 @@ sltest functionality:
 	--yield=[ids]
 	--sync=m (protect with mutex)
 	--sync=s (protect with spin-lock)
+	--lists=#
 
 
 Part 1 TODO:
@@ -57,8 +58,6 @@ Part 1 TODO:
 
 
 Part 2 TODO:
-* sltest
-	--lists=#
 * Graphs
 	average time per unprotected operation vs number of iteration (single thread)
 	average time per operation (for none, mutex, and spin-lock) vs number of threads

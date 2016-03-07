@@ -4,7 +4,7 @@
 make clean
 make
 
-TESTNUM=9
+TESTNUM=10
 PASSNUM=0
 
 ################################################################################
@@ -105,6 +105,15 @@ else
 	echo "Test 9/$TESTNUM failed!?"
 fi
 
+# Test 10 - sltest multiple lists test
+(./sltest --yield=ids --sync=m --iter=1000 --threads=10 --lists=10) 1> out 2> err
+if [ $? -eq 0 -a ! -s err ]
+then
+	echo "Test 10/$TESTNUM passed"
+	PASSNUM=$((PASSNUM+1))
+else
+	echo "Test 10/$TESTNUM failed!?"
+fi
 
 # Clean up files
 rm out err

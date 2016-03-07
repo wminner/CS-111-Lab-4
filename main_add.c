@@ -210,9 +210,10 @@ int main(int argc, char **argv)
     }
     // END parsing options
 
-    int i;
-    int retval;
-    struct timespec tp_start, tp_end;
+    int i;                              // Counter
+    int retval;                         // Track return values for error handling
+    struct timespec tp_start, tp_end;   // Timers
+    pthread_t *threads = NULL;          // Used to hold thread ids
 
     // Start timer to track wall time
     retval = clock_gettime(CLOCK_MONOTONIC, &tp_start);
@@ -223,7 +224,7 @@ int main(int argc, char **argv)
     }
 
     // Allocate array for thread ids
-    pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
+    threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
     if ( !threads ) {
         fprintf(stderr, "Error: unable to allocate memory.\n");
         exit_status = 1;
@@ -313,7 +314,7 @@ int main(int argc, char **argv)
     error:
     // Free allocated memory
     if ( threads )
-        free(threads);
+        free((void*) threads);
 
     exit(exit_status);
 }

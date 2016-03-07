@@ -12,10 +12,11 @@
 // Globals
 int opt_yield = 0;      // Yield in the middle of add to cause race condition
 char opt_sync = '0';    // Synchronization method option
+int opt_lists = 1;
 int num_threads = 1;    // Number of threads, default = 1
 int num_iterations = 1; // Number of iterations, default = 1
 int key_length = 10;    // Length of key for SortedListElement
-SortedList_t *list_head;        // Shared list to be inserted into/deleted from
+SortedList_t **list_head;       // Shared list to be inserted into/deleted from
 SortedListElement_t *elements;  // Elements to be inserted into/deleted from list_head
 
 // Prototypes
@@ -23,6 +24,7 @@ void *doTask(void *iterations);                  // Function wrapper for add wit
 void *doTaskWithMutex(void *iterations);         // Function wrapper for add with mutex synchronization
 void *doTaskWithSpinLock(void *iterations);      // Function wrapper for add with spin lock synchronization
 void *doTaskWithCompareSwap(void *iterations);   // Function wrapper for add with compare and swap synchronization
+int findhash(const char *key);                   // Find hash value for a given key mod number of lists
 
 int main(int argc, char **argv)
 {
@@ -45,6 +47,7 @@ int main(int argc, char **argv)
         {"iter",       required_argument, 0, 'j' },
         {"yield",      required_argument, 0, 'y' },
         {"sync",       required_argument, 0, 's' },
+        {"lists",      required_argument, 0, 'l' },
         {0, 0, 0, 0}
     };
 
@@ -213,6 +216,39 @@ int main(int argc, char **argv)
                     args_found = 0;     // Reset args found for next option
                     break;
 
+                // Lists
+                case 'l':
+                    while (currOptInd <= argc) {
+                        if (optarg[index] == '-' && optarg[index+1] == '-') // Check for '--'
+                            break;
+                        else    // Else, found another argument
+                            args_found++;
+                        while (optarg[index] != '\0')
+                            index++;
+                        index++;
+                        currOptInd++;
+                    }
+
+                    if (args_found != 1)    // Error if num of args not 1
+                    {
+                        fprintf (stderr, "Error: \"--lists\" requires one argument.  You supplied %d arguments.\n", args_found);
+                        exit_status = 1;
+                        if (args_found == 0)    // If no args found, decrement optind so we don't skip the next option
+                            optind--;
+                        args_found = 0;
+                        break;
+                    }
+
+                    if ( atoi(optarg) >= 1 )
+                        opt_lists = atoi(optarg);
+                    else {
+                        fprintf(stderr, "Error: list number must be greater than or equal to 1!\n");
+                        exit_status = 1;
+                    }
+
+                    args_found = 0;
+                    break;
+
                 // Default
                 default:
                     fprintf (stderr, "Error: unrecognized option \"%s\"\n", argv[optind-1]);
@@ -222,14 +258,18 @@ int main(int argc, char **argv)
     }
     // END parsing options
 
-    int i, j;
-    int retval;
-    struct timespec tp_start, tp_end;
-    int total_elements = num_threads * num_iterations;
+    int i, j, k;                            // Counters
+    int retval;                             // Track return values for error handling
+    int result_length = 0;                  // Used for finding final length at end to output
+    struct timespec tp_start, tp_end;       // Timers
+    int total_elements = num_threads * num_iterations;  // Total num of elements needing to distribute to lists
+    pthread_t *threads = NULL;              // Used to hold thread ids
 
     // These variables were declared earlier in the global scope
-    // Initilize and construct list head
-    list_head = SortedList_new();
+    // Initilize and construct list heads according to user specified opt_lists
+    list_head = (SortedList_t**) calloc(opt_lists, sizeof(SortedList_t*));
+    for ( k = 0; k < opt_lists; k++ )
+        list_head[k] = SortedList_new();
     // Allocate array of all elements that will be distributed to threads
     elements = (SortedListElement_t*) calloc(total_elements, sizeof(SortedListElement_t));
     if ( !elements ) {
@@ -237,6 +277,9 @@ int main(int argc, char **argv)
         exit_status = 1;
         goto error;
     }
+
+    // Seed rand with time, which will be used to generate keys
+    srand((unsigned) time(NULL));
 
     // Initialize all elements with a random key
     for ( i = 0; i < total_elements; i++ ) {
@@ -270,7 +313,7 @@ int main(int argc, char **argv)
     }
 
     // Allocate array for thread ids
-    pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
+    threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
     if ( !threads ) {
         fprintf(stderr, "Error: unable to allocate memory.\n");
         exit_status = 1;
@@ -340,14 +383,15 @@ int main(int argc, char **argv)
     long long unsigned total_time = 1000000000*(tp_end.tv_sec - tp_start.tv_sec) + (tp_end.tv_nsec - tp_start.tv_nsec);
     long long unsigned num_ops = num_threads*num_iterations*num_iterations;
     long long unsigned time_per_op = total_time/num_ops;
-    int length = SortedList_length(list_head);
+    for ( k = 0; k < opt_lists; k++ )
+        result_length += SortedList_length(list_head[k]);
 
     // Print summary of results
     printf("%d threads x %d iterations x (ins + lookup/del) x (%d/2 avg len) = %llu operations\n", num_threads, num_iterations, num_iterations, num_ops);
-    if ( length != 0 )
-        fprintf(stderr, "ERROR: final count = %d\n", length);
+    if ( result_length != 0 )
+        fprintf(stderr, "ERROR: final count = %d\n", result_length);
     else
-        printf("final count = %d\n", length);
+        printf("final count = %d\n", result_length);
     printf("elapsed time: %llu ns\n", total_time);
     printf("per operation: %llu ns\n", time_per_op);
 
@@ -361,8 +405,10 @@ int main(int argc, char **argv)
         free((void*) elements);
     }
     // Free list_head and threads array if not NULL
-    if ( list_head )
-        free((void*) list_head);
+    for ( k = 0; k < opt_lists; k++ ) {
+        if ( list_head[k] )
+            free((void*) list_head[k]);
+    }
     if ( threads )
         free((void*) threads);
 
@@ -375,19 +421,26 @@ int main(int argc, char **argv)
 
 // Function wrapper for add with no synchronization
 void * doTask(void *start_pos) {
-    int i;
+    int i, k;
     int offset = *((int*)start_pos);
+    int list_index = 0;
     // Perform requested number of inserts
-    for ( i = offset; i < num_iterations + offset; i++ )
-        SortedList_insert(list_head, elements+i);
+    for ( i = offset; i < num_iterations + offset; i++ ) {
+        list_index = findhash((elements+i)->key);
+        SortedList_insert(list_head[list_index], elements+i);
+    }
     
     // Check list length (as required by spec)
-    if ( SortedList_length(list_head) < 0 )
-        return (void*)-1;
+    for ( k = 0; k < opt_lists; k++ ) {
+        printf("%d\n", SortedList_length(list_head[k]));
+        if ( SortedList_length(list_head[k]) < 0 )
+            return (void*)-1;
+    }
 
     // Perform requested number of lookups/deletes
     for ( i = offset; i < num_iterations + offset; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
+        list_index = findhash((elements+i)->key);
+        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head[list_index], (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 )
@@ -401,25 +454,30 @@ void * doTask(void *start_pos) {
 
 // Function wrapper for add with mutex synchronization
 void * doTaskWithMutex(void *start_pos) {
-    int i;
+    int i, k;
     int offset = *((int*)start_pos);
+    int list_index = 0;
     static pthread_mutex_t mutex;
 
     pthread_mutex_lock(&mutex);
     // Perform requested number of inserts
     for ( i = offset; i < num_iterations + offset; i++ ) {
-        SortedList_insert(list_head, elements+i);
+        list_index = findhash((elements+i)->key);
+        SortedList_insert(list_head[list_index], elements+i);
     }
 
     // Check list length (as required by spec)
-    if ( SortedList_length(list_head) < 0 ) {
-        pthread_mutex_unlock(&mutex);
-        return (void*)-1;
+    for ( k = 0; k < opt_lists; k++ ) {
+        if ( SortedList_length(list_head[k]) < 0 ) {
+            pthread_mutex_unlock(&mutex);
+            return (void*)-1;
+        }
     }
 
     // Perform requested number of lookups/deletes
     for ( i = offset; i < num_iterations + offset; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
+        list_index = findhash((elements+i)->key);
+        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head[list_index], (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 ) {
@@ -438,24 +496,30 @@ void * doTaskWithMutex(void *start_pos) {
 
 // Function wrapper for add with spin lock synchronization
 void * doTaskWithSpinLock(void *start_pos) {
-    int i;
+    int i, k;
     int offset = *((int*)start_pos);
+    int list_index = 0;
     static volatile int spinlock = 0;
 
     while ( __sync_lock_test_and_set(&spinlock, 1) );
     // Perform requested number of inserts
-    for ( i = offset; i < num_iterations + offset; i++ )
-        SortedList_insert(list_head, elements+i);
+    for ( i = offset; i < num_iterations + offset; i++ ) {
+        list_index = findhash((elements+i)->key);
+        SortedList_insert(list_head[list_index], elements+i);
+    }
     
     // Check list length (as required by spec)
-    if ( SortedList_length(list_head) < 0 ) {
-        __sync_lock_release(&spinlock);
-        return (void*)-1;
+    for ( k = 0; k < opt_lists; k++ ) {
+        if ( SortedList_length(list_head[k]) < 0 ) {
+            __sync_lock_release(&spinlock);
+            return (void*)-1;
+        }
     }
 
     // Perform requested number of lookups/deletes
     for ( i = offset; i < num_iterations + offset; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
+        list_index = findhash((elements+i)->key);
+        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head[list_index], (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 ) {
@@ -572,4 +636,17 @@ int SortedList_length(SortedList_t *list) {
             pthread_yield();
     }
     return count;
+}
+
+//******************************************************************************
+// Helper functions
+//******************************************************************************
+
+// Takes a key and calculates a hash value via string folding and the number
+// of SortedLists needed to distribute across
+int findhash(const char *key) {
+    int sum = 0;
+    for ( int i = 0; i < key_length; i++ )
+        sum += key[i];
+    return sum % opt_lists;
 }
