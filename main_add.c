@@ -219,43 +219,63 @@ int main(int argc, char **argv)
     if ( retval < 0 ) {
         fprintf(stderr, "Error with clock_gettime: %s\n", strerror(errno));
         exit_status = 1;
-        goto errorNoFree;
+        goto error;
     }
 
     // Allocate array for thread ids
     pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
     if ( !threads ) {
-        fprintf(stderr, "Error: could not allocate memory.\n");
+        fprintf(stderr, "Error: unable to allocate memory.\n");
         exit_status = 1;
-        goto errorNoFree;
+        goto error;
     }
 
     // Create threads
-    for ( i = 0; i < num_threads; i++ ) {
-        switch (opt_sync) {
-            case '0':   // No synchronization
+    switch (opt_sync) {
+        case '0':   // No synchronization
+            for ( i = 0; i < num_threads; i++ ) {
                 retval = pthread_create(&threads[i], NULL, &doAdd, &num_iterations);
-                break;
-            case 'm':   // Mutex
+                if ( retval != 0 ) {  // Error handling
+                    fprintf(stderr, "Error: could not create requested number of threads.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+            }
+            break;
+        case 'm':   // Mutex
+            for ( i = 0; i < num_threads; i++ ) {
                 retval = pthread_create(&threads[i], NULL, &doAddWithMutex, &num_iterations);
-                break;
-            case 's':   // Spin-lock
+                if ( retval != 0 ) {  // Error handling
+                    fprintf(stderr, "Error: could not create requested number of threads.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+            }
+            break;
+        case 's':   // Spin-lock
+            for ( i = 0; i < num_threads; i++ ) {
                 retval = pthread_create(&threads[i], NULL, &doAddWithSpinLock, &num_iterations);
-                break;
-            case 'c':   // Compare and swap
+                if ( retval != 0 ) {  // Error handling
+                    fprintf(stderr, "Error: could not create requested number of threads.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+            }
+            break;
+        case 'c':   // Compare and swap
+            for ( i = 0; i < num_threads; i++ ) {
                 retval = pthread_create(&threads[i], NULL, &doAddWithCompareSwap, &num_iterations);
-                break;
-            default:    // Error
-                fprintf(stderr, "Error: invalid sync value\n");
-                exit_status = 1;
-                goto error;
-        }
-
-        if ( retval != 0 ) {  // Error handling
-            fprintf(stderr, "Error: could not create requested number of threads.\n");
+                if ( retval != 0 ) {  // Error handling
+                    fprintf(stderr, "Error: could not create requested number of threads.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+            }
+            break;
+        default:    // Error
+            fprintf(stderr, "Error: invalid sync value\n");
             exit_status = 1;
             goto error;
-        }
     }
 
     // Wait for all threads to finish
@@ -292,9 +312,9 @@ int main(int argc, char **argv)
 
     error:
     // Free allocated memory
-    free(threads);
+    if ( threads )
+        free(threads);
 
-    errorNoFree:
     exit(exit_status);
 }
 

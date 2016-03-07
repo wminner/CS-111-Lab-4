@@ -5,6 +5,8 @@ CS 111 Operating Systems Principles
 Professor Eggert
 Winter 2016
 
+Spec: http://web.cs.ucla.edu/classes/winter16/cs111/assign/lab4.html
+
 ***********************
 Lab 4 - Synchronization
 ***********************
@@ -42,7 +44,9 @@ sltest functionality:
 	--threads=#
 	--iterations=#
 	--iter=# (same as above)
-	--yield=[ids] (maybe working? can't get race condition to happen)
+	--yield=[ids]
+	--sync=m (protect with mutex)
+	--sync=s (protect with spin-lock)
 
 
 Part 1 TODO:
@@ -50,15 +54,11 @@ Part 1 TODO:
 	performance vs number of threads 
 	performance vs number of iterations
 * Short answers to questions posed in spec
-* Check memory allocations for errors
 
 
 Part 2 TODO:
-* sltest (tester program)
-	--sync=m (protect with mutex)
-	--sync=s (protect with spin-lock)
+* sltest
 	--lists=#
-* Check memory allocations for errors
 * Graphs
 	average time per unprotected operation vs number of iteration (single thread)
 	average time per operation (for none, mutex, and spin-lock) vs number of threads

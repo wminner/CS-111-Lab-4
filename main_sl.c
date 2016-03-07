@@ -232,12 +232,21 @@ int main(int argc, char **argv)
     list_head = SortedList_new();
     // Allocate array of all elements that will be distributed to threads
     elements = (SortedListElement_t*) calloc(total_elements, sizeof(SortedListElement_t));
+    if ( !elements ) {
+        fprintf(stderr, "Error: unable to allocate memory.\n");
+        exit_status = 1;
+        goto error;
+    }
 
     // Initialize all elements with a random key
     for ( i = 0; i < total_elements; i++ ) {
         // Allocate key memory
         char *new_key = (char*) malloc(key_length*sizeof(char) + 1);
-
+        if ( !new_key ) {
+            fprintf(stderr, "Error: unable to allocate memory.\n");
+            exit_status = 1;
+            goto error;
+        }
         // Generate random key (10 chars in [A-Za-z])
         for ( j = 0; j < key_length; j++ ) {
             int mod = rand() % 52;
@@ -257,44 +266,56 @@ int main(int argc, char **argv)
     if ( retval < 0 ) {
         fprintf(stderr, "Error with clock_gettime: %s\n", strerror(errno));
         exit_status = 1;
-        goto errorNoFree;
+        goto error;
     }
 
     // Allocate array for thread ids
     pthread_t *threads = (pthread_t*) calloc(num_threads, sizeof(pthread_t));
     if ( !threads ) {
-        fprintf(stderr, "Error: could not allocate memory.\n");
+        fprintf(stderr, "Error: unable to allocate memory.\n");
         exit_status = 1;
-        goto errorNoFree;
+        goto error;
     }
 
     // Create threads
-    for ( i = 0; i < num_threads; i++ ) {
-        int start_pos = num_iterations*i;
-        switch (opt_sync) {
-            case '0':   // No synchronization
+    switch (opt_sync) {
+        case '0':   // No synchronization
+            for ( i = 0; i < num_threads; i++ ) {
+                int start_pos = num_iterations*i;
                 retval = pthread_create(&threads[i], NULL, &doTask, &start_pos);
-                break;
-            case 'm':   // Mutex
+                if ( retval != 0 ) {  // Error handling
+                    fprintf(stderr, "Error: could not create requested number of threads.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+            }
+            break;
+        case 'm':   // Mutex
+            for ( i = 0; i < num_threads; i++ ) {
+                int start_pos = num_iterations*i;
                 retval = pthread_create(&threads[i], NULL, &doTaskWithMutex, &start_pos);
-                break;
-            case 's':   // Spin-lock
+                if ( retval != 0 ) {  // Error handling
+                    fprintf(stderr, "Error: could not create requested number of threads.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+            }
+            break;
+        case 's':   // Spin-lock
+            for ( i = 0; i < num_threads; i++ ) {
+                int start_pos = num_iterations*i;
                 retval = pthread_create(&threads[i], NULL, &doTaskWithSpinLock, &start_pos);
-                break;
-            case 'c':   // Compare and swap
-                retval = pthread_create(&threads[i], NULL, &doTaskWithCompareSwap, &start_pos);
-                break;
-            default:    // Error
-                fprintf(stderr, "Error: invalid sync value\n");
-                exit_status = 1;
-                goto error;
-        }
-
-        if ( retval != 0 ) {  // Error handling
-            fprintf(stderr, "Error: could not create requested number of threads.\n");
+                if ( retval != 0 ) {  // Error handling
+                    fprintf(stderr, "Error: could not create requested number of threads.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+            }
+            break;
+        default:    // Error
+            fprintf(stderr, "Error: invalid sync value\n");
             exit_status = 1;
             goto error;
-        }
     }
 
     // Wait for all threads to finish
@@ -331,16 +352,20 @@ int main(int argc, char **argv)
     printf("per operation: %llu ns\n", time_per_op);
 
     error:
-    // Free allocated memory
-    free(threads);
-    // Free key memory for each element
-    for ( i = 0; i < total_elements; i++ )
-        free((void*) (elements+i)->key);
-    // Free elements block
-    free((void*) list_head);
-    free((void*) elements);
+    // Free key memory for each element, then free elements array
+    if ( elements ) {
+        for ( i = 0; i < total_elements; i++ ) {
+            if ( (elements+i)->key )
+                free((void*) (elements+i)->key);
+        }
+        free((void*) elements);
+    }
+    // Free list_head and threads array if not NULL
+    if ( list_head )
+        free((void*) list_head);
+    if ( threads )
+        free((void*) threads);
 
-    errorNoFree:
     exit(exit_status);
 }
 
@@ -351,16 +376,17 @@ int main(int argc, char **argv)
 // Function wrapper for add with no synchronization
 void * doTask(void *start_pos) {
     int i;
+    int offset = *((int*)start_pos);
     // Perform requested number of inserts
-    for ( i = *((int*)start_pos); i < num_iterations; i++ )
+    for ( i = offset; i < num_iterations + offset; i++ )
         SortedList_insert(list_head, elements+i);
     
     // Check list length (as required by spec)
     if ( SortedList_length(list_head) < 0 )
         return (void*)-1;
 
-    // Perform requested number of loopups/deletes
-    for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
+    // Perform requested number of lookups/deletes
+    for ( i = offset; i < num_iterations + offset; i++ ) {
         SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
@@ -373,78 +399,76 @@ void * doTask(void *start_pos) {
     return (void*)0;
 }
 
-// TODO need mutex
+// Function wrapper for add with mutex synchronization
 void * doTaskWithMutex(void *start_pos) {
     int i;
-    // Perform requested number of inserts
-    for ( i = *((int*)start_pos); i < num_iterations; i++ )
-        SortedList_insert(list_head, elements+i);
-    
-    // Check list length (as required by spec)
-    if ( SortedList_length(list_head) < 0 )
-        return (void*)-1;
+    int offset = *((int*)start_pos);
+    static pthread_mutex_t mutex;
 
-    // Perform requested number of loopups/deletes
-    for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
+    pthread_mutex_lock(&mutex);
+    // Perform requested number of inserts
+    for ( i = offset; i < num_iterations + offset; i++ ) {
+        SortedList_insert(list_head, elements+i);
+    }
+
+    // Check list length (as required by spec)
+    if ( SortedList_length(list_head) < 0 ) {
+        pthread_mutex_unlock(&mutex);
+        return (void*)-1;
+    }
+
+    // Perform requested number of lookups/deletes
+    for ( i = offset; i < num_iterations + offset; i++ ) {
         SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
-            if ( SortedList_delete(ele_to_delete) == 1 )
+            if ( SortedList_delete(ele_to_delete) == 1 ) {
+                pthread_mutex_unlock(&mutex);
                 return (void*)-1;
+            }
         }
-        else
+        else {
+            pthread_mutex_unlock(&mutex);
             return (void*)-1;
+        }
     }
+    pthread_mutex_unlock(&mutex);
     return (void*)0;
 }
 
-// TODO need spin lock
+// Function wrapper for add with spin lock synchronization
 void * doTaskWithSpinLock(void *start_pos) {
     int i;
+    int offset = *((int*)start_pos);
+    static volatile int spinlock = 0;
+
+    while ( __sync_lock_test_and_set(&spinlock, 1) );
     // Perform requested number of inserts
-    for ( i = *((int*)start_pos); i < num_iterations; i++ )
+    for ( i = offset; i < num_iterations + offset; i++ )
         SortedList_insert(list_head, elements+i);
     
     // Check list length (as required by spec)
-    if ( SortedList_length(list_head) < 0 )
+    if ( SortedList_length(list_head) < 0 ) {
+        __sync_lock_release(&spinlock);
         return (void*)-1;
+    }
 
-    // Perform requested number of loopups/deletes
-    for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
+    // Perform requested number of lookups/deletes
+    for ( i = offset; i < num_iterations + offset; i++ ) {
         SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
-            if ( SortedList_delete(ele_to_delete) == 1 )
+            if ( SortedList_delete(ele_to_delete) == 1 ) {
+                __sync_lock_release(&spinlock);
                 return (void*)-1;
+            }
         }
-        else
+        else {
+            __sync_lock_release(&spinlock);
             return (void*)-1;
-    }
-    return (void*)0;
-}
-
-// TODO need compare swap
-void * doTaskWithCompareSwap(void *start_pos) {
-    int i;
-    // Perform requested number of inserts
-    for ( i = *((int*)start_pos); i < num_iterations; i++ )
-        SortedList_insert(list_head, elements+i);
-    
-    // Check list length (as required by spec)
-    if ( SortedList_length(list_head) < 0 )
-        return (void*)-1;
-
-    // Perform requested number of loopups/deletes
-    for ( i = *((int*)start_pos); i < num_iterations; i++ ) {
-        SortedListElement_t *ele_to_delete = SortedList_lookup(list_head, (elements+i)->key);
-        // Check that element with key was found before deleting
-        if ( ele_to_delete ) {
-            if ( SortedList_delete(ele_to_delete) == 1 )
-                return (void*)-1;
         }
-        else
-            return (void*)-1;
     }
+    __sync_lock_release(&spinlock);
     return (void*)0;
 }
 
@@ -454,6 +478,10 @@ void * doTaskWithCompareSwap(void *start_pos) {
 
 SortedList_t* SortedList_new(void) {
     SortedList_t *new_list = (SortedList_t*) malloc(sizeof(SortedList_t));
+    if ( !new_list ) {
+        fprintf(stderr, "Error SortedList_new: unable to allocate memory.\n");
+        return NULL;
+    }
     new_list->prev = new_list;
     new_list->next = new_list;
     new_list->key = NULL;
@@ -463,6 +491,7 @@ SortedList_t* SortedList_new(void) {
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
     SortedListElement_t *ele_prev = list;
     SortedListElement_t *ele_next = list->next;
+    int count = 0;
     while ( ele_next != list ) {
         // Compare keys and break if found target location (sorted ascending order)
         if ( strcmp(element->key, ele_next->key) <= 0 )
@@ -470,8 +499,13 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
         // Go to next element in list
         ele_prev = ele_next;
         ele_next = ele_next->next;
+        count++;
+        if ( count > num_iterations * num_threads ) {
+            fprintf(stderr, "Error: list corruption detected!\n");
+            exit(1);
+        }
     }
-    if ( opt_yield & 1 )
+    if ( opt_yield & SEARCH_YIELD )
         pthread_yield();
     // Found location, hook up pointers between current elements
     element->next = ele_next;
@@ -500,11 +534,18 @@ int SortedList_delete( SortedListElement_t *element) {
 
 SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
     SortedListElement_t *element = list->next;
+    int count = 0;
     while ( element && element != list ) {
         // Check if element has key
         if ( element->key == key )
             return element;
         element = element->next;
+        count++;
+        // Detect infinite loop
+        if ( count > num_iterations * num_threads ) {
+            fprintf(stderr, "Error: list corruption detected!\n");
+            exit(1);
+        }
         if ( opt_yield & SEARCH_YIELD )
             pthread_yield();
     }
@@ -521,79 +562,14 @@ int SortedList_length(SortedList_t *list) {
             return -1;
         // Increment count
         count++;
+        // Detect infinite loop
+        if ( count > num_iterations * num_threads ) {
+            fprintf(stderr, "Error: list corruption detected!\n");
+            exit(1);
+        }
         element = element->next;
         if ( opt_yield & SEARCH_YIELD )
             pthread_yield();
     }
     return count;
 }
-
-// // Function wrapper for add with mutex synchronization
-// void * doAddWithMutex(void *iterations) {
-//     int i;
-//     static pthread_mutex_t mutex;
-
-//     // Perform add operations with requested number of threads and iterations
-//     for ( i = 0; i < *((int*)iterations); i++ ) {
-//         pthread_mutex_lock(&mutex);
-//         add(&counter, 1);
-//         pthread_mutex_unlock(&mutex);
-//     }
-//     for ( i = 0; i < *((int*)iterations); i++ ) {
-//         pthread_mutex_lock(&mutex);
-//         add(&counter, -1);
-//         pthread_mutex_unlock(&mutex);
-//     }
-//     return 0;
-// }
-
-// // Function wrapper for add with spin lock synchronization
-// void * doAddWithSpinLock(void *iterations) {
-//     int i;
-//     static volatile int spinlock = 0;
-
-//     // Perform add operations with requested number of threads and iterations
-//     for ( i = 0; i < *((int*)iterations); i++ ) {
-//         while ( __sync_lock_test_and_set(&spinlock, 1) );
-//         add(&counter, 1);
-//         __sync_lock_release(&spinlock);
-//     }
-//     for ( i = 0; i < *((int*)iterations); i++ ) {
-//         while ( __sync_lock_test_and_set(&spinlock, 1) );
-//         add(&counter, -1);
-//         __sync_lock_release(&spinlock);
-//     }
-//     return 0;
-// }
-
-// // Function wrapper for add with compare and swap synchronization
-// void * doAddWithCompareSwap(void *iterations) {
-//     int i;
-
-//     // Perform add operations with requested number of threads and iterations
-//     for ( i = 0; i < *((int*)iterations); i++ )
-//         addWithCompareSwap(&counter, 1);
-//     for ( i = 0; i < *((int*)iterations); i++ )
-//         addWithCompareSwap(&counter, -1);
-//     return 0;
-// }
-
-// // Basic add routine
-// void add(long long *pointer, long long value) {
-//     long long sum = *pointer + value;
-//     if ( opt_yield == 1 )
-//         pthread_yield();
-//     *pointer = sum;
-// }
-
-// // Add routine with compare and swap synchronization
-// void addWithCompareSwap(long long *pointer, long long value) {
-//     long long original, sum;
-//     do {
-//         original = *pointer;
-//         sum = original + value;
-//         if ( opt_yield == 1 )
-//             pthread_yield();
-//         //*pointer = sum;
-//     } while ( __sync_val_compare_and_swap(pointer, original, sum) != original );
-// }
