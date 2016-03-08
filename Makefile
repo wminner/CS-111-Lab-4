@@ -41,3 +41,8 @@ graph: graphdata.gp
 
 clean:
 	rm -rf *~ *.o *.tar.gz addtest sltest $(DIR) *.tmp
+
+realclean: clean
+	rm *.pdf *.dat
+
+.PHONY: all addtest sltest dist check log graph clean realclean
