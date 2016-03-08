@@ -4,7 +4,7 @@
 make clean
 make
 
-TESTNUM=10
+TESTNUM=11
 PASSNUM=0
 
 ################################################################################
@@ -23,7 +23,7 @@ fi
 
 # Test 2 - addtest multiple threads (expect failure)
 (./addtest --yield=1 --iter=10000 --threads=20) 1> out 2> err
-if [ $? -eq 0 -a -s err ]
+if [ $? -eq 1 -a -s err ]
 then
 	echo "Test 2/$TESTNUM passed"
 	PASSNUM=$((PASSNUM+1))
@@ -105,7 +105,7 @@ else
 	echo "Test 9/$TESTNUM failed!?"
 fi
 
-# Test 10 - sltest multiple lists test
+# Test 10 - sltest multiple lists, mutex synchronization
 (./sltest --yield=ids --sync=m --iter=1000 --threads=10 --lists=10) 1> out 2> err
 if [ $? -eq 0 -a ! -s err ]
 then
@@ -113,6 +113,16 @@ then
 	PASSNUM=$((PASSNUM+1))
 else
 	echo "Test 10/$TESTNUM failed!?"
+fi
+
+# Test 11 - sltest multiple lists, spin-lock synchronization
+(./sltest --yield=ids --sync=s --iter=1000 --threads=10 --lists=10) 1> out 2> err
+if [ $? -eq 0 -a ! -s err ]
+then
+	echo "Test 11/$TESTNUM passed"
+	PASSNUM=$((PASSNUM+1))
+else
+	echo "Test 11/$TESTNUM failed!?"
 fi
 
 # Clean up files

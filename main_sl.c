@@ -18,6 +18,8 @@ int num_iterations = 1; // Number of iterations, default = 1
 int key_length = 10;    // Length of key for SortedListElement
 SortedList_t **list_head;       // Shared list to be inserted into/deleted from
 SortedListElement_t *elements;  // Elements to be inserted into/deleted from list_head
+pthread_mutex_t *mutex; // Array of mutex objects that are dynamically allocated (one for each list)
+volatile int *spinlock; // Array of spin-lock objects that are dynamically allocated (one for each list)
 
 // Prototypes
 void *doTask(void *iterations);                  // Function wrapper for add with no synchronization
@@ -258,12 +260,13 @@ int main(int argc, char **argv)
     }
     // END parsing options
 
-    int i, j, k;                            // Counters
-    int retval;                             // Track return values for error handling
-    int result_length = 0;                  // Used for finding final length at end to output
-    struct timespec tp_start, tp_end;       // Timers
+    int i, j, k;                        // Counters
+    int retval;                         // Track return values for error handling
+    int *start_pos;                     // Dynamically allocated so each thread gets its own copy (no races).  Used to distribute elements among threads.
+    int result_length = 0;              // Used for finding final length at end to output
+    struct timespec tp_start, tp_end;   // Timers
     int total_elements = num_threads * num_iterations;  // Total num of elements needing to distribute to lists
-    pthread_t *threads = NULL;              // Used to hold thread ids
+    pthread_t *threads = NULL;          // Used to hold thread ids
 
     // These variables were declared earlier in the global scope
     // Initilize and construct list heads according to user specified opt_lists
@@ -324,8 +327,16 @@ int main(int argc, char **argv)
     switch (opt_sync) {
         case '0':   // No synchronization
             for ( i = 0; i < num_threads; i++ ) {
-                int start_pos = num_iterations*i;
-                retval = pthread_create(&threads[i], NULL, &doTask, &start_pos);
+                // Allocate a start_pos memory address for each thread
+                start_pos = (int*) malloc(sizeof(int));
+                if ( !start_pos ) {
+                    fprintf(stderr, "Error: unable to allocate memory.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+                // Distribute elements array among threads using start_pos
+                *start_pos = num_iterations*i;
+                retval = pthread_create(&threads[i], NULL, &doTask, start_pos);
                 if ( retval != 0 ) {  // Error handling
                     fprintf(stderr, "Error: could not create requested number of threads.\n");
                     exit_status = 1;
@@ -334,9 +345,25 @@ int main(int argc, char **argv)
             }
             break;
         case 'm':   // Mutex
+            // Allocate one mutex for each list
+            mutex = (pthread_mutex_t*) calloc(opt_lists, sizeof(pthread_mutex_t));
+            if ( !mutex ) {
+                fprintf(stderr, "Error: unable to allocate memory.\n");
+                exit_status = 1;
+                goto error;
+            }
+            // Create number of threads requested
             for ( i = 0; i < num_threads; i++ ) {
-                int start_pos = num_iterations*i;
-                retval = pthread_create(&threads[i], NULL, &doTaskWithMutex, &start_pos);
+                // Allocate a start_pos memory address for each thread
+                start_pos = (int*) malloc(sizeof(int));
+                if ( !start_pos ) {
+                    fprintf(stderr, "Error: unable to allocate memory.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+                // Distribute elements array among threads using start_pos
+                *start_pos = num_iterations*i;
+                retval = pthread_create(&threads[i], NULL, &doTaskWithMutex, start_pos);
                 if ( retval != 0 ) {  // Error handling
                     fprintf(stderr, "Error: could not create requested number of threads.\n");
                     exit_status = 1;
@@ -345,9 +372,25 @@ int main(int argc, char **argv)
             }
             break;
         case 's':   // Spin-lock
+            // Allocate one spin-lock for each list
+            spinlock = (int*) calloc(opt_lists, sizeof(int));
+            if ( !spinlock ) {
+                fprintf(stderr, "Error: unable to allocate memory.\n");
+                exit_status = 1;
+                goto error;
+            }
+            // Create number of threads requested
             for ( i = 0; i < num_threads; i++ ) {
-                int start_pos = num_iterations*i;
-                retval = pthread_create(&threads[i], NULL, &doTaskWithSpinLock, &start_pos);
+                // Allocate a start_pos memory address for each thread
+                start_pos = (int*) malloc(sizeof(int));
+                if ( !start_pos ) {
+                    fprintf(stderr, "Error: unable to allocate memory.\n");
+                    exit_status = 1;
+                    goto error;
+                }
+                // Distribute elements array among threads using start_pos
+                *start_pos = num_iterations*i;
+                retval = pthread_create(&threads[i], NULL, &doTaskWithSpinLock, start_pos);
                 if ( retval != 0 ) {  // Error handling
                     fprintf(stderr, "Error: could not create requested number of threads.\n");
                     exit_status = 1;
@@ -388,8 +431,10 @@ int main(int argc, char **argv)
 
     // Print summary of results
     printf("%d threads x %d iterations x (ins + lookup/del) x (%d/2 avg len) = %llu operations\n", num_threads, num_iterations, num_iterations, num_ops);
-    if ( result_length != 0 )
+    if ( result_length != 0 ) {
         fprintf(stderr, "ERROR: final count = %d\n", result_length);
+        exit_status = 1;
+    }
     else
         printf("final count = %d\n", result_length);
     printf("elapsed time: %llu ns\n", total_time);
@@ -419,11 +464,12 @@ int main(int argc, char **argv)
 // Wrapper functions
 //******************************************************************************
 
-// Function wrapper for add with no synchronization
+// Function wrapper for list tasks with no synchronization
 void * doTask(void *start_pos) {
     int i, k;
     int offset = *((int*)start_pos);
     int list_index = 0;
+
     // Perform requested number of inserts
     for ( i = offset; i < num_iterations + offset; i++ ) {
         list_index = findhash((elements+i)->key);
@@ -432,7 +478,6 @@ void * doTask(void *start_pos) {
     
     // Check list length (as required by spec)
     for ( k = 0; k < opt_lists; k++ ) {
-        printf("%d\n", SortedList_length(list_head[k]));
         if ( SortedList_length(list_head[k]) < 0 )
             return (void*)-1;
     }
@@ -449,90 +494,105 @@ void * doTask(void *start_pos) {
         else
             return (void*)-1;
     }
+    // start_pos was allocated right before pthread_create 
+    // Each thread gets it's own start_pos mem location, so can free here
+    free(start_pos);
     return (void*)0;
 }
 
-// Function wrapper for add with mutex synchronization
+// Function wrapper for list tasks with mutex synchronization
 void * doTaskWithMutex(void *start_pos) {
     int i, k;
     int offset = *((int*)start_pos);
     int list_index = 0;
-    static pthread_mutex_t mutex;
-
-    pthread_mutex_lock(&mutex);
+    
     // Perform requested number of inserts
     for ( i = offset; i < num_iterations + offset; i++ ) {
         list_index = findhash((elements+i)->key);
+        pthread_mutex_lock(&mutex[list_index]);
         SortedList_insert(list_head[list_index], elements+i);
+        pthread_mutex_unlock(&mutex[list_index]);
     }
 
     // Check list length (as required by spec)
     for ( k = 0; k < opt_lists; k++ ) {
+        pthread_mutex_lock(&mutex[k]);
         if ( SortedList_length(list_head[k]) < 0 ) {
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex[k]);
             return (void*)-1;
         }
+        pthread_mutex_unlock(&mutex[k]);
     }
 
     // Perform requested number of lookups/deletes
     for ( i = offset; i < num_iterations + offset; i++ ) {
         list_index = findhash((elements+i)->key);
+        pthread_mutex_lock(&mutex[list_index]);
         SortedListElement_t *ele_to_delete = SortedList_lookup(list_head[list_index], (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 ) {
-                pthread_mutex_unlock(&mutex);
+                pthread_mutex_unlock(&mutex[list_index]);
                 return (void*)-1;
             }
         }
         else {
-            pthread_mutex_unlock(&mutex);
+            pthread_mutex_unlock(&mutex[list_index]);
             return (void*)-1;
         }
+        pthread_mutex_unlock(&mutex[list_index]);
     }
-    pthread_mutex_unlock(&mutex);
+    // start_pos was allocated right before pthread_create 
+    // Each thread gets it's own start_pos mem location, so can free here
+    free(start_pos);
     return (void*)0;
 }
 
-// Function wrapper for add with spin lock synchronization
+// Function wrapper for list tasks with spin-lock synchronization
 void * doTaskWithSpinLock(void *start_pos) {
     int i, k;
     int offset = *((int*)start_pos);
     int list_index = 0;
-    static volatile int spinlock = 0;
 
-    while ( __sync_lock_test_and_set(&spinlock, 1) );
     // Perform requested number of inserts
     for ( i = offset; i < num_iterations + offset; i++ ) {
         list_index = findhash((elements+i)->key);
+        while ( __sync_lock_test_and_set(&spinlock[list_index], 1) );
         SortedList_insert(list_head[list_index], elements+i);
+        __sync_lock_release(&spinlock[list_index]);
     }
     
     // Check list length (as required by spec)
     for ( k = 0; k < opt_lists; k++ ) {
+        while ( __sync_lock_test_and_set(&spinlock[k], 1) );
         if ( SortedList_length(list_head[k]) < 0 ) {
-            __sync_lock_release(&spinlock);
+            __sync_lock_release(&spinlock[k]);
             return (void*)-1;
         }
+        __sync_lock_release(&spinlock[k]);
     }
 
     // Perform requested number of lookups/deletes
     for ( i = offset; i < num_iterations + offset; i++ ) {
         list_index = findhash((elements+i)->key);
+        while ( __sync_lock_test_and_set(&spinlock[list_index], 1) );
         SortedListElement_t *ele_to_delete = SortedList_lookup(list_head[list_index], (elements+i)->key);
         // Check that element with key was found before deleting
         if ( ele_to_delete ) {
             if ( SortedList_delete(ele_to_delete) == 1 ) {
-                __sync_lock_release(&spinlock);
+                __sync_lock_release(&spinlock[list_index]);
                 return (void*)-1;
             }
         }
         else {
-            __sync_lock_release(&spinlock);
+            __sync_lock_release(&spinlock[list_index]);
             return (void*)-1;
         }
+        __sync_lock_release(&spinlock[list_index]);
     }
-    __sync_lock_release(&spinlock);
+    // start_pos was allocated right before pthread_create 
+    // Each thread gets it's own start_pos mem location, so can free here
+    free(start_pos);
     return (void*)0;
 }
 

@@ -5,6 +5,9 @@
 # Use "./logdata.sh 2 3" gets data for graphs 2 and 3 only
 # Use "./logdata.sh 0" to collect all data
 
+make clean
+make
+
 MAX_THR=25
 
 # Handle specific graph requests

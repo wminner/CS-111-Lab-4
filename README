@@ -17,6 +17,8 @@ Makefile functionality:
 * make check: executes test.sh, which performs some simple tests on addtest and 
 	sltest
 * make clean: removes all files created from 'make'
+* make log: runs logdata.sh, which collects data for graphs and puts them in 
+	.dat files (of the form p#d#.dat)
 * make addtest: only compiles program 'addtest' for part 1 of the lab
 * make sltest: only compiles program 'sltest' for part 2 of the lab
 
@@ -37,6 +39,7 @@ addtest functionality:
 	--sync=m (protect with mutex)
 	--sync=s (protect with spin-lock)
 	--sync=c (protect with compare-and-swap)
+* Exits with non-zero status if final count not equal to zero
 
 
 sltest functionality:
@@ -48,6 +51,7 @@ sltest functionality:
 	--sync=m (protect with mutex)
 	--sync=s (protect with spin-lock)
 	--lists=#
+* Exits with non-zero status if final list length not equal to zero
 
 
 Part 1 TODO:
@@ -113,6 +117,10 @@ Questions 2.3
 
 Questions 3
 	1. 
+	2. 
+	3. 
+	4. 
+	5. 
 
 
 Notes:

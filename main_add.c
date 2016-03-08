@@ -304,8 +304,10 @@ int main(int argc, char **argv)
 
     // Print summary of results
     printf("%d threads x %d iterations x (add + subtract) = %llu operations\n", num_threads, num_iterations, num_ops);
-    if ( counter != 0 )
+    if ( counter != 0 ) {
         fprintf(stderr, "ERROR: final count = %lld\n", counter);
+        exit_status = 1;
+    }
     else
         printf("final count = %lld\n", counter);
     printf("elapsed time: %llu ns\n", total_time);

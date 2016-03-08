@@ -12,7 +12,7 @@ ADDTEST_OBJECTS = $(subst .c,.o,$(ADDTEST_SOURCES))
 SLTEST_OBJECTS = $(subst .c,.o,$(SLTEST_SOURCES))
 
 DIST_SOURCES = $(ADDTEST_SOURCES) $(SLTEST_SOURCES) Makefile README checkdist \
-	SortedList.h
+	SortedList.h logdata.sh
 
 all: addtest sltest
 
@@ -32,6 +32,9 @@ $(DIR).tar.gz: $(DIST_SOURCES)
 
 check: test.sh
 	./test.sh
+
+log: logdata.sh
+	./logdata.sh 0
 
 clean:
 	rm -rf *~ *.o *.tar.gz addtest sltest $(DIR) *.tmp
