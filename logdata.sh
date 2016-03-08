@@ -299,7 +299,7 @@ do
 
 	# Part 2 - Data 10
 	# x = ratio threads:lists (1 because unprotected), y = average time per operation
-	# iterations sufficiently high , yield off, sync off
+	# iterations sufficiently high, yield off, sync off
 	if [ $REQUEST -eq 10 -o $REQUEST -eq 0 ]
 	then
 		if [ -e p2d10.dat ]

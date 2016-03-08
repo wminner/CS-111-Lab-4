@@ -18,7 +18,10 @@ Makefile functionality:
 	sltest
 * make clean: removes all files created from 'make'
 * make log: runs logdata.sh, which collects data for graphs and puts them in 
-	.dat files (of the form p#d#.dat)
+	.dat files (of the form p#d#.dat).  Each value of time per operation in the
+	.dat files is an average of 5 runs.
+* make graph: runs the gnuplot script graphdata.gp, which generates graphs from
+	the data collected by logdata.sh
 * make addtest: only compiles program 'addtest' for part 1 of the lab
 * make sltest: only compiles program 'sltest' for part 2 of the lab
 

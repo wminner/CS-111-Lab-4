@@ -12,7 +12,7 @@ ADDTEST_OBJECTS = $(subst .c,.o,$(ADDTEST_SOURCES))
 SLTEST_OBJECTS = $(subst .c,.o,$(SLTEST_SOURCES))
 
 DIST_SOURCES = $(ADDTEST_SOURCES) $(SLTEST_SOURCES) Makefile README checkdist \
-	SortedList.h logdata.sh
+	SortedList.h logdata.sh graphdata.gp
 
 all: addtest sltest
 
@@ -35,6 +35,9 @@ check: test.sh
 
 log: logdata.sh
 	./logdata.sh 0
+
+graph: graphdata.gp
+	gnuplot graphdata.gp
 
 clean:
 	rm -rf *~ *.o *.tar.gz addtest sltest $(DIR) *.tmp
