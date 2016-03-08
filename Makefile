@@ -12,7 +12,7 @@ ADDTEST_OBJECTS = $(subst .c,.o,$(ADDTEST_SOURCES))
 SLTEST_OBJECTS = $(subst .c,.o,$(SLTEST_SOURCES))
 
 DIST_SOURCES = $(ADDTEST_SOURCES) $(SLTEST_SOURCES) Makefile README checkdist \
-	SortedList.h logdata.sh graphdata.gp
+	SortedList.h logdata.sh test.sh graphdata.gp data
 
 all: addtest sltest
 

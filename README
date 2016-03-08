@@ -58,17 +58,10 @@ sltest functionality:
 
 
 Part 1 TODO:
-* Graphs comparing unprotected, mutex, spin-lock, compare-and-swap
-	performance vs number of threads 
-	performance vs number of iterations
 * Short answers to questions posed in spec
 
 
 Part 2 TODO:
-* Graphs
-	average time per unprotected operation vs number of iteration (single thread)
-	average time per operation (for none, mutex, and spin-lock) vs number of threads
-	average time per operation (for none, mutex, and spin-lock) vs the ratio of threads per list
 * Short answers to questions posed in spec
 
 
