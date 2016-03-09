@@ -13,19 +13,19 @@ Lab 4 - Synchronization
 
 Makefile functionality:
 * make: compiles programs 'addtest' and 'sltest' for part 1 and 2 of the lab
+* make addtest: only compiles program 'addtest' for part 1 of the lab
+* make sltest: only compiles program 'sltest' for part 2 of the lab
 * make dist: packages files into tarball and does some checks
 * make check: executes test.sh, which performs some simple tests on addtest and 
 	sltest
-* make clean: removes all files created from 'make'
-* make realclean: removes everything 'make clean' removes, then also removes
-	.pdf files and .dat files generated from 'make log' and 'make graph'
 * make log: runs logdata.sh, which collects data for graphs and puts them in 
 	.dat files (of the form p#d#.dat).  Each value of time per operation in the
 	.dat files is an average of 5 runs.
 * make graph: runs the gnuplot script graphdata.gp, which generates graphs from
 	the data collected by logdata.sh
-* make addtest: only compiles program 'addtest' for part 1 of the lab
-* make sltest: only compiles program 'sltest' for part 2 of the lab
+* make clean: removes all files created from 'make'
+* make realclean: removes everything 'make clean' removes, then also removes
+	.pdf files and .dat files generated from 'make log' and 'make graph'
 
 
 addtest functionality (main_add.c):
@@ -59,7 +59,7 @@ Sorted doubly linked list functionality (main_sl.c):
 	length
 
 
-Graph Deliverables
+Graph Deliverables (found in the "data" folder)
 * Part 1
 	p1d1.pdf: average time per operation vs the number of iterations
 	p1d2-5.pdf: average time per operation vs the number of threads for all four
@@ -76,97 +76,83 @@ Graph Deliverables
 		in p2d10.pdf, p2d11.pdf, and p2d12.pdf.
 
 
-Part 1 TODO:
-* Short answers to questions posed in spec
-
-
-Part 2 TODO:
-* Short answers to questions posed in spec
-
-
-Part 3 TODO:
-* Short answers to questions posed in spec
-
-
-Notes:
-* N/A
-
-
 Known Issues:
 * N/A
 
 ================================================================================
-Answers
+Answers to Questions Posed in Spec
 ================================================================================
 Questions 1.1
 =============
 
 1. Why does it take this many threads or iterations?
 
-From experimental testing on Seasnet, using greater than 400 iterations and 10
-threads results in a failure "fairly" consistently. Using a single thread will
-never failure (as there can be no race conditions). Decreasing the number of
-threads improves the chances of getting a final count of 0 with 400 iterations,
-but not significantly. Increasing the number of threads offers the same rate of
-failure as 400 x 10 (consistent failure).
+	From experimental testing on Seasnet, using greater than 400 iterations and
+	10 threads results in a failure "fairly" consistently. Using a single thread
+	will never failure (as there can be no race conditions). Decreasing the
+	number of threads improves the chances of getting a final count of 0 with
+	400 iterations, but not significantly. Increasing the number of threads
+	offers the same rate of failure as 400 x 10 (consistent failure).
 
-It most likely takes this many iterations and threads because the more chances
-we have to witness a race condition, the more likely it will happen. The
-scheduler must preempt a running thread while it is in the middle of the add
-function and this rarely happens if there are few iterations or threads trying
-to perform operations at the same time.
+	It most likely takes this many iterations and threads because the more
+	chances we have to witness a race condition, the more likely it will happen.
+	The scheduler must preempt a running thread while it is in the middle of the
+	add function and this rarely happens if there are few iterations or threads
+	trying to perform operations at the same time.
 
 2. Why does a significantly smaller number of iterations so seldom fail?
 
-With fewer iterations, threads don't end up waiting a long time to take their
-turn. Thus the scheduler rarely has to preempt active threads to serve threads
-that have been waiting a long time.
+	With fewer iterations, threads don't end up waiting a long time to take
+	their turn. Thus the scheduler rarely has to preempt active threads to serve
+	threads that have been waiting a long time.
 
 Questions 1.2
 =============
 
 1. Why does the average cost per operation drop with increasing iterations?
 
-There is overhead associated with creating the single thread that is constant
-for this data set. The overhead is measured by the timer and makes up the
-majority of the measured time for a small number of iterations. By increasing
-iterations, the overhead of creating the thread becomes smaller relative to the
-time spent doing the add operations, such that there are a lot more operations,
-but the additional add operations were all very "cheap".
+	There is overhead associated with creating the single thread that is
+	constant for this data set. The overhead is measured by the timer and makes
+	up the majority of the measured time for a small number of iterations. By
+	increasing iterations, the overhead of creating the thread becomes smaller
+	relative to the time spent doing the add operations, such that there are a
+	lot more operations, but the additional add operations are all very
+	"cheap".
 
-Creating the thread was an "expensive" operation relative to the iterations of
-the add function, so the average cost per operation goes down as more cheap
-operations are added.
+	Creating the thread was an "expensive" operation relative to the iterations
+	of the add function, so the average cost per operation goes down as more
+	cheap operations are added.
 
 2. How do we know what the “correct” cost is?
 
-The correct cost would be how much time it takes to perform just useful work,
-without the overhead costs. In this case, that would be just measuring the add
-operation time of each thread. We can find this value by measuring the cost per
-operation as iterations goes to infinity.  The constant overhead cost of setting
-up the threads then becomes negligible, since the add cost time is so much
-larger.
+	The correct cost would be how much time it takes to perform just useful
+	work, without the overhead costs. In this case, that would be just measuring
+	the add operation time of each thread. We can find this value by measuring
+	the cost per operation as iterations goes to infinity.  The constant
+	overhead cost of setting up the threads then becomes negligible, since the
+	add cost time is so much larger.
 
 3. Why are the --yield runs so much slower? Where is the extra time going?
 
-The tests with yield run slower due to thread context switching. This is true
-regardless of how many threads you have. The worker child thread has to yield
-in the middle of its add operation every iteration, which adds a context switch
-overhead cost to each add operation. The thread context switch is faster than
-a process context switch, but it still wastes time not doing useful "work".
+	The tests with yield run slower due to thread context switching. This is
+	true regardless of how many threads you have. The worker child thread has to
+	yield in the middle of its add operation every iteration, which adds a
+	context switch overhead cost to each add operation. The thread context
+	switch is faster than a process context switch, but it still wastes time not
+	doing useful "work".
 
-Apart from the thread context switch, there also may be less efficient cache
-usage as another thread being switched to might have poor temporal or spatial
-locality, causing cache misses more often.
+	Apart from the thread context switch, there also may be less efficient cache
+	usage as another thread being switched to might have poor temporal or
+	spatial locality relative to the previous thread, causing more cache misses.
 
 4. Can we get valid timings if we are using --yield? How, or why not?
 
-There will always be overhead due to the thread context switch. Taking the limit
-as iterations goes to infinity will NOT give us valid timings because the number
-of thread context switches also increases to infinity as well. Compare this to
-the thread creation overhead, which remains constant and independent of the
-number of iterations. Therefore we cannot get valid timings with the --yield
-option.
+	There will always be overhead due to the thread context switch. Taking the
+	limit as iterations goes to infinity will NOT give us valid timings because
+	the number of thread context switches also increases to infinity as well.
+	Compare this to the thread creation overhead, which remains constant and
+	independent of the number of iterations. Therefore we cannot get valid
+	timings with the --yield option.
 
 Questions 1.3
 =============
@@ -193,7 +179,7 @@ Questions 1.3
 	be efficent or very inefficient (like the spin-locks). Compare and swap does
 	not force threads to wait for critical sections to be clear, but instead
 	allows them to proceed and only apply the final operation on the shared
-	count variable if a race condition  has not occurred. This is more efficient
+	count variable if a race condition has not occurred. This is more efficient
 	than the other synchronization types.
 
 	Either way, more threads creates more chances for waiting at critical
@@ -229,10 +215,11 @@ Questions 2.1
     The graph exhibits some jumps in average time per operation. This is likely
     due to the random keys assigned to each list element being inserted/deleted.
     Since the list is sorted, a thread may have a much longer insert or lookup
-    time for some keys (if the key value is high).  This element of randomness
-    may be reduced by running each test multiple times.  For our graph, for each
-    number of iterations tested, data was collected for five trials and average
-    was taken.  This helped smooth out the graph, but a few bumps still remain.
+    time for some keys (if the key value is high). This element of randomness
+    may be reduced by running each test multiple times. For our graph, for each
+    number of iterations tested, data was collected for five trials and the
+    average was taken. This helped smooth out the graph, but a few bumps still
+    remain.
 
     By running more trials per each number of iterations, the true value can be
     found (N/2 list traversal for a list of N elements).
@@ -243,7 +230,29 @@ Questions 2.2
 1. Compare the variation in time per protected operation vs the number of 
    threads in Part 2 and in Part 1. Explain the difference.
 
-    
+    The data from Part 2 shows the average time per protected operation has the
+	mutex take longer than spin-lock for all number of threads, which is
+	reversed from the Part 1 data. Also the mutex tests from Part 1 show that
+	the average time per operation levels out as we increase the number of 
+	threads. Part 2 shows that the mutex tests increase roughly linearly
+	relative to the number of threads.
+	
+	The reason for these discrepancies is most likely due to the fact that we
+	perform significantly fewer operations per mutex lock/unlock in part 1. Part
+	2 performs many more operations per mutex lock/unlock as it needs to iterate
+	through half the length of the list on average. As a result the time per
+	operation is significantly less. Compare part 1's 123 ns per operation to
+	part 2's 46 ns per operation when using 10 threads. This implies the
+	overhead for the mutex operations represents the bulk of the operation time
+	until a certain threashold (seen in part 1 where the graph p1d2-5.pdf levels
+	out). Part 2 on the other hand has not yet reached this plateau as the
+	number of operations performed under each mutex is greater and reduces the
+	impact of the mutex overhead.
+	
+	If we were to continue adding threads to part 2's driver, then it would most
+	likely level out similar to part 1. However Seasnet limits the number of
+	threads we can test with and it also takes significantly longer (minutes) to
+	run tests at this number of iterations and threads.
 
 Questions 2.3
 =============
@@ -251,28 +260,115 @@ Questions 2.3
 1. Explain the the change in performance of the synchronized methods as a 
    function of the number of threads per list.
 
+    The mutex and spin-lock perform significantly better with a low ratio of
+	threads per list, and approach the performance of synchronization off (with
+	one thread) when the ratio is 1:1. This means each thread can theoretically
+	write to its own list without competing with other threads. This would only
+	be true if the hash function used to distribute list elements was injective
+	(one-to-one). In practice we can see this is roughly true because all sync
+	tests perform similarly at a ratio of 1.
+	
+	By increasing the number of threads per list, each thread must compete with
+	more threads for a lock to perform its task. This drives up the average time
+	per operation as shown on the graph (p2d10-12.pdf).
 
 2. Explain why threads per list is a more interesting number than threads (for 
    this particular measurement).
 
+    Allocating more threads to this single list task is not very interesting
+    because the work cannot be divided among multiple threads very easily. As a
+    result, adding more threads to the task just slows everything down
+    (p2d7-9.pdf),  which is the opposite of what you usually want by allocating
+    more workers to a task.
 
+    Instead we can actually make performance gains by changing the problem to
+    something that multiple threads can work on at once, and this is
+    accomplished by loosening the bottleneck of the original problem: the
+    single, central lock. By measuring the average time per operation relative
+    to the number of threads per list, we can see how performance can be
+    improved by splitting up the task into smaller, more parallel tasks. In this
+    way we see the actual benefits of threads and how they can help depending on
+    how the problem is broken down.
 
 Questions 3
 ===========
 
 1. Why must the mutex be held when pthread_cond_wait is called?
 
+	The goal of pthread_cond_wait is to check a condition and then act if the
+	condition is true, in an atomic way. We don't want a race condition to
+	happen between the time we check the condition and the time we perform an
+	action based on that condition. Therefore the mutex must be held by the
+	calling thread if we don't want another thread to get inbetween the
+	condition check and the subsequent action.
+
+	The function merely provides a way for a thread to block, instead of looping
+	continuously checking the condition inside a mutex each time.
 
 2. Why must the mutex be released when the waiting thread is blocked?
 
+	When the calling thread checks the condition and sees that it is false, it
+	will want to wait for the condition to be true. Assuming the call to
+	pthread_cond_wait is inside a mutex as described in the previous answer (in
+	order to safely check the condition and act on it), then it will need to
+	release its mutex right before it becomes blocked. Otherwise no threads will
+	be able to acquire the mutex so that the desired change can happen. If no
+	other threads can get the mutex, then the waiting thread may be blocked
+	forever, or other threads may just be wasting time waiting for the mutex on
+	the locked object even though no code is being executed on it (since the 
+	caller is blocked).
 
 3. Why must the mutex be reacquired when the calling thread resumes?
 
+	Since the goal of the calling thread was to wait until the condition became
+	true, then it accomplishes this by releasing its mutex in the middle of a
+	critical section, so that another thread may change the condition to be
+	true. However when this happens, the calling thread is woken up and resumes
+	its activity in the middle of the critical section. Therefore it must
+	reacquire the mutex so the remainder of the critical section can be executed
+	safely under the protection of the mutex.
 
 4. Why must this be done inside of pthread_cond_wait? Why can’t the caller 
    simply release the mutex before calling pthread_cond_wait?
 
+    If the caller releases its mutex before calling pthread_cond_wait, then
+    it exposes the code to a race condition. In the time between waking up
+    (since the condition became true) and the time it takes to lock the mutex
+    again (or just execute the desired action), another thread may do something
+    to make the condition false. Then the calling thread will incorrectly
+    execute its desired action even though the condition was false.
+
+    By using pthread_cond_wait to release and gain the mutex, this ensures no
+    other thread can gain the mutex before the caller does when the condition
+    becomes true. We want a guarantee that the caller reserves next place in
+    line for the mutex when the condition becomes true.
 
 5. Can this be done in a user-mode implementation of pthread_cond_wait? If so, 
    how? If it can only be implemented by a system call, explain why?
 
+    This could be implemented in user-mode, but it would not be as efficient.
+    For example, suppose we are checking a condition predicate called 'pred'.
+    Then we can lock the mutex, check the predicate with a while loop, and
+    unlock the mutex and sleep if we remain in the while loop. See following
+    code:
+
+	    bool pred = false;
+	    ...
+	    pthread_mutex_lock(&mutex);
+	    while (!pred) {
+		    pthread_mutex_unlock(&mutex);
+		    sleep(x);
+		    pthread_mutex_lock(&mutex);
+	    }
+	    pthread_mutex_unlock(&mutex);
+
+    This code is not as efficient because it does not block for the appropriate
+    amount of time. Instead it sleeps for x amount of time and checks the
+    condition every once in a while.
+
+    To fully implement pthread_cond_wait, we need to access the kernel because
+    we would need cooperation from the scheduler to give the calling thread the
+    mutex when it becomes unblocked (when pthread_cond_wait returns). Otherwise
+    some other thread may take the mutex first and change the predicate
+    condition unexpectedly. Blocking for the appropriate amount of time also
+    relies on cooperation from the scheduler.
