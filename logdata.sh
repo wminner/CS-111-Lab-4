@@ -75,7 +75,7 @@ do
 			let NUM_THR=i
 			for j in `seq 1 5`;
 			do
-				TEMP=$(((./addtest --yield-1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
+				TEMP=$(((./addtest --yield=1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
 				SUM=$((SUM+TEMP))
 			done
 			AVG=$((SUM/5))
@@ -102,7 +102,7 @@ do
 			let NUM_THR=i
 			for j in `seq 1 5`;
 			do
-				TEMP=$(((./addtest --sync=m --yield-1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
+				TEMP=$(((./addtest --sync=m --yield=1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
 				SUM=$((SUM+TEMP))
 			done
 			AVG=$((SUM/5))
@@ -129,7 +129,7 @@ do
 			let NUM_THR=i
 			for j in `seq 1 5`;
 			do
-				TEMP=$(((./addtest --sync=s --yield-1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
+				TEMP=$(((./addtest --sync=s --yield=1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
 				SUM=$((SUM+TEMP))
 			done
 			AVG=$((SUM/5))
@@ -156,7 +156,7 @@ do
 			let NUM_THR=i
 			for j in `seq 1 5`;
 			do
-				TEMP=$(((./addtest --sync=c --yield-1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
+				TEMP=$(((./addtest --sync=c --yield=1 --iter=$SUFF_HIGH_ADD_ITER --threads=$NUM_THR) | sed -n -E "s/per operation: ([0-9]+) ns/\\1/p")2>/dev/null)
 				SUM=$((SUM+TEMP))
 			done
 			AVG=$((SUM/5))
