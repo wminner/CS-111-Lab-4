@@ -12,6 +12,7 @@ import os
 import sys
 import subprocess
 import math
+import re
 
 subprocess.call("make clean;", shell=True)
 subprocess.call("make;", shell=True)
@@ -23,6 +24,8 @@ WHITE_SPACE = MAX_THR - 6
 
 write_sum = open('temp_file', 'w')
 read_sum = open('temp_file', 'r')
+
+pattern = re.compile('per operation: ([0-9]+) ns')
 
 # Handle specific graph requests
 # If no args given, then compute all graph data
@@ -53,9 +56,11 @@ for request in sys.argv[1:]:
 		for i in range(3, 101):
 			NUM_ITER = i * 10
 			for j in range(5):
-				process_string = "./addtest --iter={0} --threads=1 | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(NUM_ITER)
+				process_string = "./addtest --iter={0} --threads=1;".format(NUM_ITER)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -76,9 +81,11 @@ for request in sys.argv[1:]:
 		for i in range(1, MAX_THR+1):
 			NUM_THR = i
 			for j in range(5):
-				process_string = "((./addtest --yield=1 --iter={0} --threads={1}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\")2>/dev/null;".format(SUFF_HIGH_ADD_ITER, NUM_THR)
+				process_string = "./addtest --yield=1 --iter={0} --threads={1} 2> /dev/null;".format(SUFF_HIGH_ADD_ITER, NUM_THR)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -99,9 +106,11 @@ for request in sys.argv[1:]:
 		for i in range(1, MAX_THR+1):
 			NUM_THR = i
 			for j in range(5):
-				process_string = "((./addtest --sync=m --yield=1 --iter={0} --threads={1}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\")2>/dev/null;".format(SUFF_HIGH_ADD_ITER, NUM_THR)
+				process_string = "./addtest --sync=m --yield=1 --iter={0} --threads={1};".format(SUFF_HIGH_ADD_ITER, NUM_THR)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -122,9 +131,11 @@ for request in sys.argv[1:]:
 		for i in range(1, MAX_THR+1):
 			NUM_THR = i
 			for j in range(5):
-				process_string = "((./addtest --sync=s --yield=1 --iter={0} --threads={1}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\")2>/dev/null;".format(SUFF_HIGH_ADD_ITER, NUM_THR)
+				process_string = "./addtest --sync=s --yield=1 --iter={0} --threads={1};".format(SUFF_HIGH_ADD_ITER, NUM_THR)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -145,9 +156,11 @@ for request in sys.argv[1:]:
 		for i in range(1, MAX_THR+1):
 			NUM_THR = i
 			for j in range(5):
-				process_string = "((./addtest --sync=c --yield=1 --iter={0} --threads={1}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\")2>/dev/null;".format(SUFF_HIGH_ADD_ITER, NUM_THR)
+				process_string = "./addtest --sync=c --yield=1 --iter={0} --threads={1};".format(SUFF_HIGH_ADD_ITER, NUM_THR)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -174,9 +187,11 @@ for request in sys.argv[1:]:
 		for i in range(3, 101):
 			NUM_ITER = i * 10
 			for j in range(5):
-				process_string = "(./sltest --iter={0} --threads=1) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(NUM_ITER)
+				process_string = "./sltest --iter={0} --threads=1;".format(NUM_ITER)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -197,9 +212,11 @@ for request in sys.argv[1:]:
 		for i in range(1):
 			NUM_THR = 1
 			for j in range(5):
-				process_string = "(./sltest --iter={0} --threads={1}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(SUFF_HIGH_SL_ITER, NUM_THR)
+				process_string = "./sltest --iter={0} --threads={1};".format(SUFF_HIGH_SL_ITER, NUM_THR)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -226,9 +243,11 @@ for request in sys.argv[1:]:
 		for i in range(1, MAX_THR+1):
 			NUM_THR = i
 			for j in range(5):
-				process_string = "(./sltest --sync=m --iter={0} --threads={1}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(SUFF_HIGH_SL_ITER, NUM_THR)
+				process_string = "./sltest --sync=m --iter={0} --threads={1};".format(SUFF_HIGH_SL_ITER, NUM_THR)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -256,9 +275,11 @@ for request in sys.argv[1:]:
 		for i in range(1, MAX_THR+1):
 			NUM_THR = i
 			for j in range(5):
-				process_string = "(./sltest --sync=s --iter={0} --threads={1}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(SUFF_HIGH_SL_ITER, NUM_THR)
+				process_string = "./sltest --sync=s --iter={0} --threads={1};".format(SUFF_HIGH_SL_ITER, NUM_THR)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -282,9 +303,11 @@ for request in sys.argv[1:]:
 			NUM_LIST = 1
 			THR_LIST_RATIO = 1
 			for j in range(5):
-				process_string = "(./sltest --iter={0} --threads={1} --lists={2}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(SUFF_HIGH_SL_ITER, NUM_THR, NUM_LIST)
+				process_string = "./sltest --iter={0} --threads={1} --lists={2};".format(SUFF_HIGH_SL_ITER, NUM_THR, NUM_LIST)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -313,9 +336,11 @@ for request in sys.argv[1:]:
 			NUM_LIST = i
 			THR_LIST_RATIO = round(NUM_THR/NUM_LIST, 2)
 			for j in range(5):
-				process_string = "(./sltest --sync=m --iter={0} --threads={1} --lists={2}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(SUFF_HIGH_SL_ITER, NUM_THR, NUM_LIST)
+				process_string = "./sltest --sync=m --iter={0} --threads={1} --lists={2};".format(SUFF_HIGH_SL_ITER, NUM_THR, NUM_LIST)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
@@ -345,9 +370,11 @@ for request in sys.argv[1:]:
 			NUM_LIST = i
 			THR_LIST_RATIO = round(NUM_THR/NUM_LIST, 2)
 			for j in range(5):
-				process_string = "(./sltest --sync=s --iter={0} --threads={1} --lists={2}) | sed -n -E \"s/per operation: ([0-9]+) ns/\\1/p\";".format(SUFF_HIGH_SL_ITER, NUM_THR, NUM_LIST)
+				process_string = "./sltest --sync=s --iter={0} --threads={1} --lists={2};".format(SUFF_HIGH_SL_ITER, NUM_THR, NUM_LIST)
 				subprocess.call(process_string, shell=True, stdout=write_sum)
-				SUM += int(read_sum.read())
+				match = pattern.search(read_sum.read())
+				if match:
+					SUM += int(match.group(1))
 
 			AVG = math.floor(SUM/5)
 			SUM = 0
